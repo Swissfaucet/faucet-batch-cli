@@ -15,7 +15,7 @@ class UserOnlineCheck extends Command
      * @var TableGateway $mUserTbl
      * @since 1.0.0
      */
-    protected $mUserTbl;
+    protected TableGateway $mUserTbl;
 
     /**
      * Constructor
