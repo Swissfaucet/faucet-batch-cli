@@ -61,6 +61,12 @@ class MinerShares extends Command
         parent::__construct();
     }
 
+    /**
+     * Run MinerShares Command
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @return int
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // log start
@@ -274,9 +280,9 @@ class MinerShares extends Command
             if(isset($responseJson->data)) {
                 $newBalance = $responseJson->data;
                 if($newBalance > $cachedBalance && $cachedBalance > 0) {
-                    $earnings = $cachedBalance-$newBalance;
+                    $earnings = $newBalance-$cachedBalance;
                 } else {
-                    // there was a payment so the balance is lower
+                    // there was a payment so the balance is lower - take full balance as earnings
                     $earnings = $newBalance;
                 }
 

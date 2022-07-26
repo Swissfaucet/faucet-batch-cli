@@ -2,6 +2,8 @@
 
 namespace Batch;
 
+use Batch\Command\MinerPayments\MinerPayments;
+use Batch\Command\MinerPayments\MinerPaymentsFactory;
 use Batch\Command\MinerShares\MinerShares;
 use Batch\Command\MinerShares\MinerSharesFactory;
 use Batch\Command\UserOnlineCheck\UserOnlineCheck;
@@ -23,6 +25,7 @@ class ConfigProvider
             'commands' => [
                 'batch:user-online-check' => UserOnlineCheck::class,
                 'batch:miner-shares' => MinerShares::class,
+                'batch:miner-payments' => MinerPayments::class
             ],
         ];
     }
@@ -32,7 +35,8 @@ class ConfigProvider
         return [
             'factories' => [
                 UserOnlineCheck::class => UserOnlineCheckFactory::class,
-                MinerShares::class => MinerSharesFactory::class
+                MinerShares::class => MinerSharesFactory::class,
+                MinerPayments::class => MinerPaymentsFactory::class
             ],
         ];
     }
