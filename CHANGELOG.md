@@ -8,8 +8,11 @@ All notable changes to this project will be documented in this file, in reverse 
 ## 1.1.0
 
 ### Added
+- Miner Payments Batch
 - Miner Shares Batch
+- Miner Stats Batch
 - Transaction Tools
+- Daily Task Stats Batch
 
 ## 1.0.0
 

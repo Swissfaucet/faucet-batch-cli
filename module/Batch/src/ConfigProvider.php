@@ -2,10 +2,16 @@
 
 namespace Batch;
 
+use Batch\Command\DailyTaskStats\DailyTaskStats;
+use Batch\Command\DailyTaskStats\DailyTaskStatsFactory;
 use Batch\Command\MinerPayments\MinerPayments;
 use Batch\Command\MinerPayments\MinerPaymentsFactory;
 use Batch\Command\MinerShares\MinerShares;
 use Batch\Command\MinerShares\MinerSharesFactory;
+use Batch\Command\MinerStats\MinerStats;
+use Batch\Command\MinerStats\MinerStatsFactory;
+use Batch\Command\OfferwallStats\OfferwallStats;
+use Batch\Command\OfferwallStats\OfferwallStatsFactory;
 use Batch\Command\UserOnlineCheck\UserOnlineCheck;
 use Batch\Command\UserOnlineCheck\UserOnlineCheckFactory;
 
@@ -25,7 +31,10 @@ class ConfigProvider
             'commands' => [
                 'batch:user-online-check' => UserOnlineCheck::class,
                 'batch:miner-shares' => MinerShares::class,
-                'batch:miner-payments' => MinerPayments::class
+                'batch:miner-payments' => MinerPayments::class,
+                'batch:miner-stats' => MinerStats::class,
+                'batch:offerwall-stats' => OfferwallStats::class,
+                'batch:daily-task-stats' => DailyTaskStats::class
             ],
         ];
     }
@@ -36,7 +45,10 @@ class ConfigProvider
             'factories' => [
                 UserOnlineCheck::class => UserOnlineCheckFactory::class,
                 MinerShares::class => MinerSharesFactory::class,
-                MinerPayments::class => MinerPaymentsFactory::class
+                MinerPayments::class => MinerPaymentsFactory::class,
+                MinerStats::class => MinerStatsFactory::class,
+                OfferwallStats::class => OfferwallStatsFactory::class,
+                DailyTaskStats::class => DailyTaskStatsFactory::class
             ],
         ];
     }

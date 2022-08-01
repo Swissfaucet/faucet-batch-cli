@@ -5,11 +5,13 @@ namespace Batch\Command\MinerShares;
 use Batch\Tools\SecurityTools;
 use Laminas\Db\TableGateway\TableGateway;
 use Laminas\Http\ClientStatic;
-use Symfony\Component\Console\Command\Command;
+use Laminas\Cli\Command\AbstractParamAwareCommand;
+use Laminas\Cli\Input\ParamAwareInputInterface;
+use Laminas\Cli\Input\StringParam;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class MinerShares extends Command
+final class MinerShares extends AbstractParamAwareCommand
 {
     /**
      * User Table
@@ -62,6 +64,18 @@ class MinerShares extends Command
     }
 
     /**
+     * Configure Command - add parameter
+     */
+    protected function configure() : void
+    {
+        $this->addParam(
+            (new StringParam('coin'))
+                ->setDescription('Coin you want to process shares')
+                ->setShortcut('c')
+        );
+    }
+
+    /**
      * Run MinerShares Command
      * @param InputInterface $input
      * @param OutputInterface $output
@@ -69,6 +83,19 @@ class MinerShares extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $coin = $input->getParam('coin');
+        switch($coin) {
+            case 'xmr':
+            case 'etc':
+            case 'rvn':
+                break;
+            default:
+                $output->writeln([
+                    "Coin not supported"
+                ]);
+                return AbstractParamAwareCommand::SUCCESS;
+        }
+
         // log start
         $output->writeln([
             '=====================',
@@ -77,11 +104,9 @@ class MinerShares extends Command
         ]);
 
         // set basic info
-        $etcDone = $this->runMinerPaymentRun('etc', 1, $output);
-        $rvnDone = $this->runMinerPaymentRun('rvn', 1, $output);
-        $xmrDone = $this->runMinerPaymentRun('xmr', 1, $output);
+        $isDone = $this->runMinerPaymentRun($coin, 1, $output);
 
-        return Command::SUCCESS;
+        return AbstractParamAwareCommand::SUCCESS;
     }
 
     /**
@@ -135,7 +160,7 @@ class MinerShares extends Command
                 $totalPercent+=$percent;
 
                 if($worker->hashrate > 0) {
-                    $workers[] = (object)[
+                    $workers[$worker->worker] = (object)[
                         'name' => $worker->worker,
                         'hashrate' => $worker->hashrate,
                         'pool_percent' => $percent
@@ -153,7 +178,7 @@ class MinerShares extends Command
 
             if($totalPercent > 100) {
                 $output->writeln([
-                    '- Total % is bigger than 100% = '.$totalPercent,
+                    '- Total Hashrate % is bigger than 100% = '.$totalPercent,
                 ]);
             }
         } else {
@@ -165,6 +190,50 @@ class MinerShares extends Command
 
         $output->writeln([
             '- Total active workers on pool = '.count($workers),
+        ]);
+
+        $output->writeln([
+            '- Get Workers effective Shares for the last '.$hours.' hours for '.strtoupper($currency),
+        ]);
+        $workerShares = $this->loadSharesPerWorker($currency, $nanoWallet, $hours);
+        $totalShares = 0;
+        $workersWithShares = [];
+        if(is_array($workerShares)) {
+            foreach($workerShares as $workerShare) {
+                // add shares to worker
+                if(array_key_exists($workerShare->worker, $workers)) {
+                    $workers[$workerShare->worker]->shares = $workerShare->shares;
+                    $totalShares+=$workerShare->shares;
+                }
+            }
+            $totalSharesPercent = 0;
+            // loop all workers again to calculate and add percent
+            foreach($workers as $worker) {
+                // Calculate % of total avg hashrate
+                if($worker->shares > 0 && $totalShares > 0) {
+                    $percent = round((100 / ($totalShares / $worker->shares)), 2);
+                    $worker->shares_percent = $percent;
+                    $totalSharesPercent+=$percent;
+                    $workersWithShares[] = $worker;
+                } elseif($worker->shares == 0) {
+                    $output->writeln([
+                        '- Skipping worker '.$worker->worker.' because no shares',
+                    ]);
+                }
+            }
+            if($totalSharesPercent > 100) {
+                $output->writeln([
+                    '- Total Shares % is bigger than 100% = '.$totalPercent,
+                ]);
+            }
+        } else {
+            $output->writeln([
+                '## ERROR - COULD NOT LOAD WORKERS EFFECTIVE SHARES FROM API',
+            ]);
+            return true;
+        }
+        $output->writeln([
+            '- Total active workers with shares = '.count($workersWithShares),
         ]);
 
         // Get Total Earnings in Crypto for timeframe
@@ -207,7 +276,7 @@ class MinerShares extends Command
         ]);
 
         // Pay Users based on their % hashrate of pool
-        if($this->payMiners($totalPayment, $workers, $currency,$output)) {
+        if($this->payMiners($totalPayment, $workersWithShares, $currency,$output)) {
             $output->writeln([
                 '-- Payment run completed successfully',
                 '=====================',
@@ -233,6 +302,26 @@ class MinerShares extends Command
     {
         // Load Total Average Hashrate for defined timeframe
         $response = ClientStatic::get("https://api.nanopool.org/v1/".$currency."/avghashratelimited/".$wallet."/".$hours, []);
+        $apiResponse = $response->getBody();
+        if(strlen($apiResponse) > 0) {
+            $responseJson = json_decode($apiResponse);
+
+            return $responseJson->data ?? false;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Load Workers effective Shares for timeframe
+     * @param $currency
+     * @param $wallet
+     * @param $hours
+     * @return bool|array
+     */
+    private function loadSharesPerWorker($currency, $wallet, $hours): bool|array
+    {
+        $response = ClientStatic::get("https://api.nanopool.org/v1/".$currency."/sharesperworker/".$wallet."/".$hours, []);
         $apiResponse = $response->getBody();
         if(strlen($apiResponse) > 0) {
             $responseJson = json_decode($apiResponse);
@@ -354,19 +443,21 @@ class MinerShares extends Command
                     }
                     $user = $this->mUserTbl->select(['User_ID' => $userId]);
                     if($user->count() > 0) {
-                        if($miner->pool_percent > 0) {
-                            $amount = floor(($payment*($miner->pool_percent/100)));
+                        if($miner->shares_percent > 0) {
+                            $amount = floor(($payment*($miner->shares_percent/100)));
                             $queueTotal+=$amount;
                             $paymentQueue[] = (object)[
                                 'user_idfs' => $userId,
                                 'amount' => $amount,
                                 'hashrate' => $miner->hashrate,
-                                'percent' => $miner->pool_percent,
+                                'hashrate_percent' => $miner->pool_percent,
+                                'shares' => $miner->shares,
+                                'shares_percent' => $miner->shares_percent,
                                 'worker' => $workerName
                             ];
                         } else {
                             $output->writeln([
-                                '- Invalid % Hashrate = '.$miner->pool_percent.' - ignore user '.$userId,
+                                '- Invalid % Hashrate = '.$miner->shares_percent.' - ignore user '.$userId,
                             ]);
                         }
                     } else {
@@ -402,16 +493,18 @@ class MinerShares extends Command
                     $this->mPaymentTbl->insert([
                         'user_idfs' => $pay->user_idfs,
                         'hashrate' => $pay->hashrate,
-                        'hashrate_percent' => $pay->percent,
+                        'hashrate_percent' => $pay->hashrate_percent,
+                        'shares' => $pay->shares,
+                        'shares_percent' => $pay->shares_percent,
                         'worker' => $pay->worker,
                         'amount_coin' => $pay->amount,
-                        'state' => 'new',
+                        'state' => 'open',
                         'coin' => $currency,
                         'date' => date('Y-m-d H:i:s', time())
                     ]);
                 } else {
                     $output->writeln([
-                        '- Skipping payment for invali userId: '.$pay->user_idfs
+                        '- Skipping payment for invalid userId: '.$pay->user_idfs
                     ]);
                 }
             }
