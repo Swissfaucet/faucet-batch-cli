@@ -152,6 +152,13 @@ final class MinerShares extends AbstractParamAwareCommand
         if(is_array($workersHashrate)) {
             $totalPercent = 0;
             foreach($workersHashrate as $worker) {
+                // skip invalid worker names
+                if(!property_exists($worker, 'worker')) {
+                    continue;
+                }
+                if(strlen($worker->worker) < 5) {
+                    continue;
+                }
                 // Calculate % of total avg hashrate
                 $percent = 0;
                 if($worker->hashrate > 0 && $avgHashrate > 0) {
@@ -209,16 +216,28 @@ final class MinerShares extends AbstractParamAwareCommand
             $totalSharesPercent = 0;
             // loop all workers again to calculate and add percent
             foreach($workers as $worker) {
-                // Calculate % of total avg hashrate
-                if($worker->shares > 0 && $totalShares > 0) {
-                    $percent = round((100 / ($totalShares / $worker->shares)), 2);
-                    $worker->shares_percent = $percent;
-                    $totalSharesPercent+=$percent;
-                    $workersWithShares[] = $worker;
-                } elseif($worker->shares == 0) {
-                    $output->writeln([
-                        '- Skipping worker '.$worker->worker.' because no shares',
-                    ]);
+                if(property_exists($worker, 'shares')) {
+                    // Calculate % of total avg hashrate
+                    if($worker->shares > 0 && $totalShares > 0) {
+                        $percent = round((100 / ($totalShares / $worker->shares)), 2);
+                        $worker->shares_percent = $percent;
+                        $totalSharesPercent+=$percent;
+                        $workersWithShares[] = $worker;
+                    } elseif($worker->shares == 0) {
+                        $output->writeln([
+                            '- Skipping worker '.$worker->worker.' because no shares',
+                        ]);
+                    }
+                } else {
+                    if(property_exists($worker, 'worker')) {
+                        $output->writeln([
+                            '- Skipping worker ' . $worker->worker . ' because no shares',
+                        ]);
+                    } else {
+                        $output->writeln([
+                            '- Skipping UNKNOWN worker because no shares / no worker name',
+                        ]);
+                    }
                 }
             }
             if($totalSharesPercent > 100) {

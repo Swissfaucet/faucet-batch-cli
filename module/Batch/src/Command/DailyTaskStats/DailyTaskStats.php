@@ -100,7 +100,7 @@ class DailyTaskStats extends Command {
         ]);
 
         $this->mSecTools->updateCoreSetting('job_dailys_stats_date', date('Y-m-d', $statDate));
-        //$this->mSecTools->updateCoreSetting('job_dailys_stats_lastrun', date('Y-m-d H:i:s', time()));
+        $this->mSecTools->updateCoreSetting('job_dailys_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
             '-- Daily Task Statistics completed successfully',

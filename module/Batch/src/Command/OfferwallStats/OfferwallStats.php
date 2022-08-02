@@ -90,6 +90,10 @@ class OfferwallStats extends Command {
             return Command::SUCCESS;
         }
 
+        $output->writeln([
+            'Date to process: '.$stop_date->format('Y-m-d')
+        ]);
+
         $offersDone = $this->generateOfferwallStats($statDate);
         $output->writeln([
             '- Processed '.$offersDone.' offers',
@@ -121,39 +125,69 @@ class OfferwallStats extends Command {
 
         // get offers done by user
         $offersBigByUserId = [];
+        $offersMedByUserId = [];
         $offersSmallByUserId = [];
+        $offersTinyByUserId = [];
         foreach($offersToday as $offer) {
             // big offers have 5000 coins reward or more
-            if($offer->amount >= 5000) {
+            if($offer->amount >= 50000) {
                 if(!array_key_exists('user-'.$offer->user_idfs, $offersBigByUserId)) {
                     $offersBigByUserId['user-'.$offer->user_idfs] = 0;
                 }
                 $offersBigByUserId['user-'.$offer->user_idfs]++;
-            } else {
+            } elseif($offer->amount >= 5000) {
+                if(!array_key_exists('user-'.$offer->user_idfs, $offersMedByUserId)) {
+                    $offersMedByUserId['user-'.$offer->user_idfs] = 0;
+                }
+                $offersMedByUserId['user-'.$offer->user_idfs]++;
+            } elseif($offer->amount >= 1000) {
                 if(!array_key_exists('user-'.$offer->user_idfs, $offersSmallByUserId)) {
                     $offersSmallByUserId['user-'.$offer->user_idfs] = 0;
                 }
                 $offersSmallByUserId['user-'.$offer->user_idfs]++;
+            } else {
+                if(!array_key_exists('user-'.$offer->user_idfs, $offersTinyByUserId)) {
+                    $offersTinyByUserId['user-'.$offer->user_idfs] = 0;
+                }
+                $offersTinyByUserId['user-'.$offer->user_idfs]++;
             }
         }
 
         // update user stats (alltime)
+        $key = 'user-offertiny-total';
+        $this->updateUserStatsByKey($key, $offersTinyByUserId);
+
         $key = 'user-offersmall-total';
         $this->updateUserStatsByKey($key, $offersSmallByUserId);
+
+        $key = 'user-offermed-total';
+        $this->updateUserStatsByKey($key, $offersMedByUserId);
 
         $key = 'user-offerbig-total';
         $this->updateUserStatsByKey($key, $offersBigByUserId);
 
         // update user stats (month)
+        $key = 'user-offertiny-m-'.date('n-Y', $date);
+        $this->updateUserStatsByKey($key, $offersTinyByUserId);
+
         $key = 'user-offersmall-m-'.date('n-Y', $date);
         $this->updateUserStatsByKey($key, $offersSmallByUserId);
+
+        $key = 'user-offermed-m-'.date('n-Y', $date);
+        $this->updateUserStatsByKey($key, $offersMedByUserId);
 
         $key = 'user-offerbig-m-'.date('n-Y', $date);
         $this->updateUserStatsByKey($key, $offersBigByUserId);
 
         // update user stats (week)
+        $key = 'user-offertiny-w-'.$this->mBatchTools->getWeek($date);
+        $this->updateUserStatsByKey($key, $offersTinyByUserId);
+
         $key = 'user-offersmall-w-'.$this->mBatchTools->getWeek($date);
         $this->updateUserStatsByKey($key, $offersSmallByUserId);
+
+        $key = 'user-offermed-w-'.$this->mBatchTools->getWeek($date);
+        $this->updateUserStatsByKey($key, $offersMedByUserId);
 
         $key = 'user-offerbig-w-'.$this->mBatchTools->getWeek($date);
         $this->updateUserStatsByKey($key, $offersBigByUserId);
