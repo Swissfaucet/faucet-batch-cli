@@ -53,7 +53,7 @@ class OfferwallStats extends Command {
         $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
-        $this->mBatchTools = new BatchTools();
+        $this->mBatchTools = new BatchTools($mapper);
         
         // you *must* call the parent constructor
         parent::__construct();
@@ -94,7 +94,7 @@ class OfferwallStats extends Command {
             'Date to process: '.$stop_date->format('Y-m-d')
         ]);
 
-        $offersDone = $this->generateOfferwallStats($statDate);
+        $offersDone = $this->generateOfferwallStats($statDate, $output);
         $output->writeln([
             '- Processed '.$offersDone.' offers',
         ]);
@@ -110,7 +110,7 @@ class OfferwallStats extends Command {
         return Command::SUCCESS;
     }
 
-    private function generateOfferwallStats($date) {
+    private function generateOfferwallStats($date, $output) {
         // load shares
         $tWh = new Where();
         $tWh->like('date_completed', date('Y-m-d', $date).'%');
@@ -180,23 +180,29 @@ class OfferwallStats extends Command {
         $this->updateUserStatsByKey($key, $offersBigByUserId);
 
         // update user stats (week)
-        $key = 'user-offertiny-w-'.$this->mBatchTools->getWeek($date);
-        $this->updateUserStatsByKey($key, $offersTinyByUserId);
+        $weekNo = $this->mBatchTools->getWeek($date);
+        $key = 'user-offertiny-w-'.$weekNo;
+        $this->updateUserStatsByKey($key, $offersTinyByUserId, $weekNo, $output, 'oftiny');
 
-        $key = 'user-offersmall-w-'.$this->mBatchTools->getWeek($date);
-        $this->updateUserStatsByKey($key, $offersSmallByUserId);
+        $key = 'user-offersmall-w-'.$weekNo;
+        $this->updateUserStatsByKey($key, $offersSmallByUserId, $weekNo, $output, 'ofsmall');
 
-        $key = 'user-offermed-w-'.$this->mBatchTools->getWeek($date);
-        $this->updateUserStatsByKey($key, $offersMedByUserId);
+        $key = 'user-offermed-w-'.$weekNo;
+        $this->updateUserStatsByKey($key, $offersMedByUserId, $weekNo, $output, 'ofmed');
 
-        $key = 'user-offerbig-w-'.$this->mBatchTools->getWeek($date);
-        $this->updateUserStatsByKey($key, $offersBigByUserId);
+        $key = 'user-offerbig-w-'.$weekNo;
+        $this->updateUserStatsByKey($key, $offersBigByUserId, $weekNo, $output, 'ofbig');
 
         return $offersCount;
     }
 
-    private function updateUserStatsByKey($key, $offersByUserId) : void
+    private function updateUserStatsByKey($key, $offersByUserId, $week = false, $output = false, $gStatsKey = false) : void
     {
+        if($week) {
+            $guildByUserId = $this->mBatchTools->loadUsersInGuilds();
+        }
+
+        $tasksByGuild = [];
         foreach(array_keys($offersByUserId) as $userIdStr) {
             $userId = substr($userIdStr, strlen('user-'));
             if(is_numeric($userId) && $userId > 0 && !empty($userId)) {
@@ -218,7 +224,22 @@ class OfferwallStats extends Command {
                         'date' => $now
                     ],['user_idfs' => $userId, 'stat_key' => $key]);
                 }
+
+                if($week) {
+                    // Add Weekly Value to Guild
+                    if(array_key_exists('user-'.$userId,$guildByUserId)) {
+                        $guildId = $guildByUserId['user-'.$userId];
+                        if(!array_key_exists('guild-'.$guildId, $tasksByGuild)) {
+                            $tasksByGuild['guild-'.$guildId] = 0;
+                        }
+                        $tasksByGuild['guild-'.$guildId]+=$offersByUserId[$userIdStr];
+                    }
+                }
             }
+        }
+
+        if($week) {
+            $wkUpdate = $this->mBatchTools->updateGuildWeeklyStats($tasksByGuild, $week, $gStatsKey, $output);
         }
     }
 }

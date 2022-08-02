@@ -2,6 +2,7 @@
 
 namespace Batch\Command\MinerStats;
 
+use Batch\Tools\BatchTools;
 use Batch\Tools\SecurityTools;
 use Laminas\Db\Sql\Select;
 use Laminas\Db\Sql\Where;
@@ -35,6 +36,11 @@ class MinerStats extends Command {
     protected SecurityTools $mSecTools;
 
     /**
+     * Batch Tools
+     */
+    protected BatchTools $mBatchTools;
+
+    /**
      * Constructor
      *
      * UserResource constructor.
@@ -47,6 +53,7 @@ class MinerStats extends Command {
         $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
+        $this->mBatchTools = new BatchTools($mapper);
 
         // you *must* call the parent constructor
         parent::__construct();
@@ -89,16 +96,20 @@ class MinerStats extends Command {
             return Command::SUCCESS;
         }
 
+        $output->writeln([
+            'Date to process: '.$stop_date->format('Y-m-d')
+        ]);
 
-        $sharesEtc = $this->calculateCoinStats($statDate, 'etc');
+
+        $sharesEtc = $this->calculateCoinStats($statDate, 'etc', $output);
         $output->writeln([
             '- Processed '.$sharesEtc.' etc shares',
         ]);
-        $sharesRvn = $this->calculateCoinStats($statDate, 'rvn');
+        $sharesRvn = $this->calculateCoinStats($statDate, 'rvn', $output);
         $output->writeln([
             '- Processed '.$sharesRvn.' rvn shares',
         ]);
-        $sharesXmr = $this->calculateCoinStats($statDate, 'xmr');
+        $sharesXmr = $this->calculateCoinStats($statDate, 'xmr', $output);
         $output->writeln([
             '- Processed '.$sharesXmr.' xmr shares',
         ]);
@@ -120,7 +131,7 @@ class MinerStats extends Command {
      * @param $coin
      * @return int
      */
-    private function calculateCoinStats($date, $coin) : int
+    private function calculateCoinStats($date, $coin, $output) : int
     {
         // load shares
         $tWh = new Where();
@@ -153,40 +164,9 @@ class MinerStats extends Command {
         $this->updateUserStatsByKey($key, $sharesByUserId);
 
         // update user stats (week)
-        $week = date('W-Y', $date);
-        $weekDay = date('w', $date);
-        $weekCheck = date('W', $date);
-        $monthCheck = date('n', $date);
-        // fix php bug - wrong iso week for first week of the year
-        //$dev = 1;
-        $yearFixApplied = false;
-        if($monthCheck == 1 && ($weekCheck > 10 || $weekCheck == 1)) {
-            // last week of last year is extended to tuesday as our week begins at wednesday
-            if($weekDay != 3 && $weekDay != 4 && $weekDay != 5) {
-                //$dev = 5;
-                try {
-                    $stop_date = new \DateTime(date('Y-m-d', $date));
-                    $stop_date->modify('-5 days');
-                    $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-
-                    $week = date('W-Y', $statDate);
-                    $yearFixApplied = true;
-                } catch(\Exception $e) {
-
-                }
-            }
-        }
-        // dont mess with fixed date from year change
-        if(!$yearFixApplied) {
-            //$dev = 3;
-            // monday and tuesday are counted to last weeks iso week
-            if($weekDay == 1 || $weekDay == 2) {
-                //$dev = 4;
-                $week = ($weekCheck-1).'-'.date('Y', $date);
-            }
-        }
-        $key = 'user-nano-'.$coin.'-coin-w-'.$week;
-        $this->updateUserStatsByKey($key, $sharesByUserId);
+        $weekNo = $this->mBatchTools->getWeek($date);
+        $key = 'user-nano-'.$coin.'-coin-w-'.$weekNo;
+        $this->updateUserStatsByKey($key, $sharesByUserId, $weekNo, $output, $coin);
 
         return $sharesCount;
     }
@@ -197,8 +177,13 @@ class MinerStats extends Command {
      * @param $sharesByUserId
      * @return void
      */
-    private function updateUserStatsByKey($key, $sharesByUserId) : void
+    private function updateUserStatsByKey($key, $sharesByUserId, $week = false, $output = false, $coin = false) : void
     {
+        if($week) {
+            $guildByUserId = $this->mBatchTools->loadUsersInGuilds();
+        }
+
+        $tasksByGuild = [];
         foreach(array_keys($sharesByUserId) as $userIdStr) {
             $userId = substr($userIdStr, strlen('user-'));
             if(is_numeric($userId) && $userId > 0 && !empty($userId)) {
@@ -220,6 +205,32 @@ class MinerStats extends Command {
                         'date' => $now
                     ],['user_idfs' => $userId, 'stat_key' => $key]);
                 }
+
+                if($week) {
+                    // Add Weekly Value to Guild
+                    if(array_key_exists('user-'.$userId,$guildByUserId)) {
+                        $guildId = $guildByUserId['user-'.$userId];
+                        if(!array_key_exists('guild-'.$guildId, $tasksByGuild)) {
+                            $tasksByGuild['guild-'.$guildId] = 0;
+                        }
+                        $tasksByGuild['guild-'.$guildId]+=$sharesByUserId[$userIdStr];
+                    }
+                }
+            }
+        }
+
+        // Update Guild Weekly Stats
+        if($week) {
+            switch($coin) {
+                case 'xmr':
+                    $wkUpdate = $this->mBatchTools->updateGuildWeeklyStats($tasksByGuild, $week, 'cpucoins', $output);
+                    break;
+                case 'etc':
+                case 'rvn':
+                    $wkUpdate = $this->mBatchTools->updateGuildWeeklyStats($tasksByGuild, $week, 'gpucoins', $output);
+                    break;
+                default:
+                    break;
             }
         }
     }

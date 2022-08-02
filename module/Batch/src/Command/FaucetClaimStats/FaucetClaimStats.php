@@ -1,6 +1,6 @@
 <?php
 
-namespace Batch\Command\DailyTaskStats;
+namespace Batch\Command\FaucetClaimStats;
 
 use Batch\Tools\BatchTools;
 use Batch\Tools\SecurityTools;
@@ -11,14 +11,14 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class DailyTaskStats extends Command {
+class FaucetClaimStats extends Command {
     /**
      * Dailytask User Table
      *
-     * @var TableGateway $mTasksDoneTbl
+     * @var TableGateway $mClaimTbl
      * @since 1.0.0
      */
-    protected TableGateway $mTasksDoneTbl;
+    protected TableGateway $mClaimTbl;
 
     /**
      * User Statistics Table
@@ -49,12 +49,12 @@ class DailyTaskStats extends Command {
      */
     public function __construct($mapper)
     {
-        $this->mTasksDoneTbl = new TableGateway('faucet_dailytask_user', $mapper);
+        $this->mClaimTbl = new TableGateway('faucet_claim', $mapper);
         $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mBatchTools = new BatchTools($mapper);
-        
+
         // you *must* call the parent constructor
         parent::__construct();
     }
@@ -64,12 +64,12 @@ class DailyTaskStats extends Command {
         // log start
         $output->writeln([
             '=====================',
-            'Generating Daily Task Statistics @ ' . date('Y-m-d H:i:s', time()),
+            'Generating Faucet Claim Statistics @ ' . date('Y-m-d H:i:s', time()),
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_dailys_stats_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_dailys_stats_lastrun');
+        $lastDate = $this->mSecTools->getCoreSetting('job_faucet_claims_date');
+        $lastrun = $this->mSecTools->getCoreSetting('job_faucet_claims_lastrun');
 
         // only run batch once per day
         if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
@@ -94,67 +94,62 @@ class DailyTaskStats extends Command {
             'Date to process: '.$stop_date->format('Y-m-d')
         ]);
 
-        $tasksDone = $this->generateDailyTaskStats($statDate, $output);
+        $tasksDone = $this->generateFaucetClaimStats($statDate);
         $output->writeln([
-            '- Processed '.$tasksDone.' daily tasks',
+            '- Processed '.$tasksDone.' faucet claims',
         ]);
 
-        $this->mSecTools->updateCoreSetting('job_dailys_stats_date', date('Y-m-d', $statDate));
-        $this->mSecTools->updateCoreSetting('job_dailys_stats_lastrun', date('Y-m-d H:i:s', time()));
+        $this->mSecTools->updateCoreSetting('job_faucet_claims_date', date('Y-m-d', $statDate));
+        //$this->mSecTools->updateCoreSetting('job_faucet_claims_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
-            '-- Daily Task Statistics completed successfully',
+            '-- Faucet Claim Statistics completed successfully',
             '=====================',
         ]);
 
         return Command::SUCCESS;
     }
 
-    private function generateDailyTaskStats($date, $output) {
+    private function generateFaucetClaimStats($date) {
         // load shares
         $tWh = new Where();
         $tWh->like('date', date('Y-m-d', $date).'%');
-        $tSel = new Select($this->mTasksDoneTbl->getTable());
+        $tSel = new Select($this->mClaimTbl->getTable());
         $tSel->where($tWh);
-        $tSel->order('date ASC');
+        //  $tSel->order('date ASC');
 
-        $tasksToday = $this->mTasksDoneTbl->selectWith($tSel);
+        $claimsToday = $this->mClaimTbl->selectWith($tSel);
 
         // Count Entries
-        $tasksCount = $tasksToday->count();
+        $claimsCount = 0;
 
-        // get offers done by user
-        $dailyTasksByUserId = [];
-        foreach($tasksToday as $offer) {
-            if(!array_key_exists('user-'.$offer->user_idfs, $dailyTasksByUserId)) {
-                $dailyTasksByUserId['user-'.$offer->user_idfs] = 0;
+        // get claims done by user
+        $claimsByUserId = [];
+        foreach($claimsToday as $claim) {
+            $claimsCount++;
+            if(!array_key_exists('user-'.$claim->user_idfs, $claimsByUserId)) {
+                $claimsByUserId['user-'.$claim->user_idfs] = 0;
             }
-            $dailyTasksByUserId['user-'.$offer->user_idfs]++;
+            $claimsByUserId['user-'.$claim->user_idfs]++;
         }
 
         // update user stats (alltime)
-        $key = 'user-dailys-total';
-        $this->updateUserStatsByKey($key, $dailyTasksByUserId);
+        $key = 'user-claims-total';
+        $this->updateUserStatsByKey($key, $claimsByUserId);
 
         // update user stats (month)
-        $key = 'user-dailys-m-'.date('n-Y', $date);
-        $this->updateUserStatsByKey($key, $dailyTasksByUserId);
+        $key = 'user-claims-m-'.date('n-Y', $date);
+        $this->updateUserStatsByKey($key, $claimsByUserId);
 
         // update user stats (week)
-        $weekNo = $this->mBatchTools->getWeek($date);
-        $key = 'user-dailys-w-'.$weekNo;
-        $this->updateUserStatsByKey($key, $dailyTasksByUserId, $weekNo, $output);
+        $key = 'user-claims-w-'.$this->mBatchTools->getWeek($date);
+        $this->updateUserStatsByKey($key, $claimsByUserId);
 
-        return $tasksCount;
+        return $claimsCount;
     }
 
-    private function updateUserStatsByKey($key, $tasksByUserId, $week = false, $output = false) : void
+    private function updateUserStatsByKey($key, $tasksByUserId) : void
     {
-        if($week) {
-            $guildByUserId = $this->mBatchTools->loadUsersInGuilds();
-        }
-
-        $tasksByGuild = [];
         foreach(array_keys($tasksByUserId) as $userIdStr) {
             $userId = substr($userIdStr, strlen('user-'));
             if(is_numeric($userId) && $userId > 0 && !empty($userId)) {
@@ -176,23 +171,7 @@ class DailyTaskStats extends Command {
                         'date' => $now
                     ],['user_idfs' => $userId, 'stat_key' => $key]);
                 }
-
-                if($week) {
-                    // Add Weekly Value to Guild
-                    if(array_key_exists('user-'.$userId,$guildByUserId)) {
-                        $guildId = $guildByUserId['user-'.$userId];
-                        if(!array_key_exists('guild-'.$guildId, $tasksByGuild)) {
-                            $tasksByGuild['guild-'.$guildId] = 0;
-                        }
-                        $tasksByGuild['guild-'.$guildId]+=$tasksByUserId[$userIdStr];
-                    }
-                }
             }
-        }
-
-        // Update Guild Weekly Stats
-        if($week) {
-            $wkUpdate = $this->mBatchTools->updateGuildWeeklyStats($tasksByGuild, $week, 'dailytask', $output);
         }
     }
 }

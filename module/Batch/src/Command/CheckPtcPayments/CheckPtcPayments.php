@@ -55,7 +55,7 @@ class CheckPtcPayments extends Command
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mTxTools = new TransactionTools($mapper);
-        $this->mBatchTools = new BatchTools();
+        $this->mBatchTools = new BatchTools($mapper);
 
         // you *must* call the parent constructor
         parent::__construct();
