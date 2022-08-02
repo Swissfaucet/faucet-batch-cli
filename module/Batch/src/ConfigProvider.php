@@ -2,6 +2,8 @@
 
 namespace Batch;
 
+use Batch\Command\CheckPtcPayments\CheckPtcPayments;
+use Batch\Command\CheckPtcPayments\CheckPtcPaymentsFactory;
 use Batch\Command\DailyTaskStats\DailyTaskStats;
 use Batch\Command\DailyTaskStats\DailyTaskStatsFactory;
 use Batch\Command\MinerPayments\MinerPayments;
@@ -34,7 +36,8 @@ class ConfigProvider
                 'batch:miner-payments' => MinerPayments::class,
                 'batch:miner-stats' => MinerStats::class,
                 'batch:offerwall-stats' => OfferwallStats::class,
-                'batch:daily-task-stats' => DailyTaskStats::class
+                'batch:daily-task-stats' => DailyTaskStats::class,
+                'batch:check-ptc-payments' => CheckPtcPayments::class
             ],
         ];
     }
@@ -48,7 +51,8 @@ class ConfigProvider
                 MinerPayments::class => MinerPaymentsFactory::class,
                 MinerStats::class => MinerStatsFactory::class,
                 OfferwallStats::class => OfferwallStatsFactory::class,
-                DailyTaskStats::class => DailyTaskStatsFactory::class
+                DailyTaskStats::class => DailyTaskStatsFactory::class,
+                CheckPtcPayments::class => CheckPtcPaymentsFactory::class
             ],
         ];
     }
