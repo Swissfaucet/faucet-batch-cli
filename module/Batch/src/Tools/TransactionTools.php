@@ -29,6 +29,10 @@ class TransactionTools {
      */
     protected TableGateway $mPtcTxTbl;
 
+    private TableGateway $mGuildTbl;
+
+    private TableGateway $mGuildTxTbl;
+
     /**
      * Constructor
      *
@@ -39,6 +43,8 @@ class TransactionTools {
     public function __construct($mapper)
     {
         $this->mUserTbl = new TableGateway('user', $mapper);
+        $this->mGuildTbl = new TableGateway('faucet_guild', $mapper);
+        $this->mGuildTxTbl = new TableGateway('faucet_guild_transaction', $mapper);
         $this->mTxTbl = new TableGateway('faucet_transaction', $mapper);
         $this->mPtcTxTbl = new TableGateway('ptc_transaction', $mapper);
     }
@@ -188,6 +194,80 @@ class TransactionTools {
                     'User_ID' => $userId
                 ]);
                 return $newBalance;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Execute Faucet Guild Token Transaction for User
+     *
+     * @param float $amount - Amount of Token to transfer
+     * @param bool $isOutput
+     * @param int $guildId - Target Guild ID
+     * @param int $refId - Reference ID for Transaction
+     * @param string $refType - Reference Type for Transaction
+     * @param string $description - Detailed Description for Transaction
+     * @param int $createdBy (optional) - Source User ID
+     * @param bool $returnTxId
+     * @return float|bool|string
+     * @since 1.0.0
+     */
+    public function executeGuildTransaction(float $amount, bool $isOutput, int $guildId, int $refId, string $refType, string $description, int $createdBy, bool $returnTxId = false): float|bool|string
+    {
+        # no negative transactions allowed
+        if($amount < 0) {
+            return false;
+        }
+
+        # Do not allow zero for update
+        if($guildId == 0) {
+            return false;
+        }
+
+        # Generate Transaction ID
+        try {
+            $sTransactionID = $bytes = random_bytes(5);
+        } catch(\Exception $e) {
+            # Fallback if random bytes fails
+            $sTransactionID = time();
+        }
+        $sTransactionID = hash("sha256",$sTransactionID);
+
+        # Get user from database
+        $guildInfo = $this->mGuildTbl->select(['Guild_ID' => $guildId]);
+        if(count($guildInfo) > 0) {
+            $guildInfo = $guildInfo->current();
+            # calculate new balance
+            $newBalance = ($isOutput) ? $guildInfo->token_balance-$amount : $guildInfo->token_balance+$amount;
+            # Insert Transaction
+            if($this->mGuildTxTbl->insert([
+                'Transaction_ID' => $sTransactionID,
+                'amount' => $amount,
+                'token_balance' => $guildInfo->token_balance,
+                'token_balance_new' => $newBalance,
+                'is_output' => ($isOutput) ? 1 : 0,
+                'date' => date('Y-m-d H:i:s', time()),
+                'ref_idfs' => $refId,
+                'ref_type' => $refType,
+                'comment' => utf8_encode($description),
+                'guild_idfs' => $guildId,
+                'created_by' => $createdBy,
+            ])) {
+                # update user balance
+                $this->mGuildTbl->update([
+                    'token_balance' => $newBalance,
+                ],[
+                    'Guild_ID' => $guildId
+                ]);
+                if(!$returnTxId) {
+                    return $newBalance;
+                } else {
+                    return $sTransactionID;
+                }
             } else {
                 return false;
             }

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file, in reverse 
 ## Todo
 - Add "hacker" achievement to MinerShares
 
+## 1.2.1
+
+### Added
+- Guild Weekly Task Checker
+- Guild Transactions
 
 ## 1.2.0
 

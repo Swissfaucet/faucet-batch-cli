@@ -8,6 +8,8 @@ use Batch\Command\DailyTaskStats\DailyTaskStats;
 use Batch\Command\DailyTaskStats\DailyTaskStatsFactory;
 use Batch\Command\FaucetClaimStats\FaucetClaimStats;
 use Batch\Command\FaucetClaimStats\FaucetClaimStatsFactory;
+use Batch\Command\GuildWeeklyCheck\GuildWeeklyCheck;
+use Batch\Command\GuildWeeklyCheck\GuildWeeklyCheckFactory;
 use Batch\Command\MinerPayments\MinerPayments;
 use Batch\Command\MinerPayments\MinerPaymentsFactory;
 use Batch\Command\MinerShares\MinerShares;
@@ -40,7 +42,8 @@ class ConfigProvider
                 'batch:offerwall-stats' => OfferwallStats::class,
                 'batch:daily-task-stats' => DailyTaskStats::class,
                 'batch:check-ptc-payments' => CheckPtcPayments::class,
-                'batch:faucet-claim-stats' => FaucetClaimStats::class
+                'batch:faucet-claim-stats' => FaucetClaimStats::class,
+                'batch:guild-weekly-check' => GuildWeeklyCheck::class
             ],
         ];
     }
@@ -56,7 +59,8 @@ class ConfigProvider
                 OfferwallStats::class => OfferwallStatsFactory::class,
                 DailyTaskStats::class => DailyTaskStatsFactory::class,
                 CheckPtcPayments::class => CheckPtcPaymentsFactory::class,
-                FaucetClaimStats::class => FaucetClaimStatsFactory::class
+                FaucetClaimStats::class => FaucetClaimStatsFactory::class,
+                GuildWeeklyCheck::class => GuildWeeklyCheckFactory::class
             ],
         ];
     }
