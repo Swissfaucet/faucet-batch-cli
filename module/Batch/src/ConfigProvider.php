@@ -18,6 +18,12 @@ use Batch\Command\MinerStats\MinerStats;
 use Batch\Command\MinerStats\MinerStatsFactory;
 use Batch\Command\OfferwallStats\OfferwallStats;
 use Batch\Command\OfferwallStats\OfferwallStatsFactory;
+use Batch\Command\ShortlinkStats\ShortlinkStats;
+use Batch\Command\ShortlinkStats\ShortlinkStatsFactory;
+use Batch\Command\UserAccountStats\UserAccountStats;
+use Batch\Command\UserAccountStats\UserAccountStatsFactory;
+use Batch\Command\UserDailyStats\UserDailyStats;
+use Batch\Command\UserDailyStats\UserDailyStatsFactory;
 use Batch\Command\UserOnlineCheck\UserOnlineCheck;
 use Batch\Command\UserOnlineCheck\UserOnlineCheckFactory;
 
@@ -43,7 +49,10 @@ class ConfigProvider
                 'batch:daily-task-stats' => DailyTaskStats::class,
                 'batch:check-ptc-payments' => CheckPtcPayments::class,
                 'batch:faucet-claim-stats' => FaucetClaimStats::class,
-                'batch:guild-weekly-check' => GuildWeeklyCheck::class
+                'batch:guild-weekly-check' => GuildWeeklyCheck::class,
+                'batch:shortlink-stats' => ShortlinkStats::class,
+                'batch:user-account-stats' => UserAccountStats::class,
+                'batch:user-daily-stats' => UserDailyStats::class
             ],
         ];
     }
@@ -60,7 +69,10 @@ class ConfigProvider
                 DailyTaskStats::class => DailyTaskStatsFactory::class,
                 CheckPtcPayments::class => CheckPtcPaymentsFactory::class,
                 FaucetClaimStats::class => FaucetClaimStatsFactory::class,
-                GuildWeeklyCheck::class => GuildWeeklyCheckFactory::class
+                GuildWeeklyCheck::class => GuildWeeklyCheckFactory::class,
+                ShortlinkStats::class => ShortlinkStatsFactory::class,
+                UserAccountStats::class => UserAccountStatsFactory::class,
+                UserDailyStats::class => UserDailyStatsFactory::class
             ],
         ];
     }

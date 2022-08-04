@@ -100,7 +100,7 @@ class FaucetClaimStats extends Command {
         ]);
 
         $this->mSecTools->updateCoreSetting('job_faucet_claims_date', date('Y-m-d', $statDate));
-        //$this->mSecTools->updateCoreSetting('job_faucet_claims_lastrun', date('Y-m-d H:i:s', time()));
+        $this->mSecTools->updateCoreSetting('job_faucet_claims_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
             '-- Faucet Claim Statistics completed successfully',

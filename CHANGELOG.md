@@ -4,12 +4,21 @@ All notable changes to this project will be documented in this file, in reverse 
 
 ## Todo
 - Add "hacker" achievement to MinerShares
+- Withdraw Stats + Achievements (include referral bonus)
+- Miner Achievements
+- Check all other Achievements
+- Achievement Point Stats Batch (Alltime + Month)
+- Guild Activity Batch
+- User Online (last_action) "today" Batch
+- User Referral + Signups Stats Batch
+- Transaction Stats Batch
 
 ## 1.2.1
 
 ### Added
 - Guild Weekly Task Checker
 - Guild Transactions
+- Shortlink Stats Batch
 
 ## 1.2.0
 
