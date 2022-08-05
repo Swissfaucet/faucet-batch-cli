@@ -9,8 +9,7 @@ All notable changes to this project will be documented in this file, in reverse 
 - Check all other Achievements
 - Achievement Point Stats Batch (Alltime + Month)
 - Guild Activity Batch
-- User Online (last_action) "today" Batch
-- User Referral + Signups Stats Batch
+- Add "Total Offers" / "Total Shortlinks" / "Total Claims" (global across all users) to batches
 - Transaction Stats Batch
 
 ## 1.2.1

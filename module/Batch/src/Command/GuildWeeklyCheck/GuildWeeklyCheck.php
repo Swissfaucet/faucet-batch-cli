@@ -45,6 +45,14 @@ class GuildWeeklyCheck extends Command
     protected TableGateway $mWeeklyClaimTbl;
 
     /**
+     * Guild Statistics Table
+     *
+     * @var TableGateway $mGuildStatsTbl
+     * @since 1.0.0
+     */
+    protected TableGateway $mGuildStatsTbl;
+
+    /**
      * Security Tools
      *
      * @var SecurityTools $mSecTools
@@ -79,6 +87,7 @@ class GuildWeeklyCheck extends Command
         $this->mWeeklyTbl = new TableGateway('faucet_guild_weekly', $mapper);
         $this->mWeeklyStatusTbl = new TableGateway('faucet_guild_weekly_status', $mapper);
         $this->mWeeklyClaimTbl = new TableGateway('faucet_guild_weekly_claim', $mapper);
+        $this->mGuildStatsTbl = new TableGateway('faucet_guild_statistic', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mBatchTools = new BatchTools($mapper);
@@ -133,7 +142,7 @@ class GuildWeeklyCheck extends Command
             'Check Status for '.count($baseTasks).' Tasks @ Week '.$weekNo
         ]);
 
-        $this->processGuildWeeklyTasks($baseTasks, $weekNo);
+        $this->processGuildWeeklyTasks($baseTasks, $weekNo, $statDate);
 
         $this->mSecTools->updateCoreSetting('job_guild_weeklys_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_guild_weeklys_lastrun', date('Y-m-d H:i:s', time()));
@@ -159,8 +168,9 @@ class GuildWeeklyCheck extends Command
      * Process Guild Weekly Tasks
      * @param $tasks
      * @param $weekYear
+     * @param $date
      */
-    private function processGuildWeeklyTasks($tasks, $weekYear) {
+    private function processGuildWeeklyTasks($tasks, $weekYear, $date) {
         $weekInfo = explode('-', $weekYear);
         $weekNo = $weekInfo[0];
         $weekYear = $weekInfo[1];
@@ -170,6 +180,8 @@ class GuildWeeklyCheck extends Command
 
         // Get completed Tasks
         $claimsByGuild = $this->getGuildsWeeklyClaims($weekNo, $weekYear);
+
+        $completedTasksByGuildId = [];
 
         foreach($tasks as $task) {
             foreach($progressByGuild as $gKey => $guildProgress) {
@@ -189,6 +201,10 @@ class GuildWeeklyCheck extends Command
                             $guildId = substr($gKey, strlen('guild-'));
                             if($guildId != '' && $guildId > 0) {
                                 $this->claimGuildWeeklyTask($guildId, $task->Weekly_ID, $task->reward, $task->label, $weekNo, $weekYear);
+                                if(!array_key_exists($gKey, $completedTasksByGuildId)) {
+                                    $completedTasksByGuildId[$gKey] = 0;
+                                }
+                                $completedTasksByGuildId[$gKey]++;
                             }
                         }
 
@@ -210,6 +226,10 @@ class GuildWeeklyCheck extends Command
                                         $guildId = substr($gKey, strlen('guild-'));
                                         if($guildId != '' && $guildId > 0) {
                                             $this->claimGuildWeeklyTask($guildId, $nextLevel->Weekly_ID, $nextLevel->reward, $nextLevel->label, $weekNo, $weekYear);
+                                            if(!array_key_exists($gKey, $completedTasksByGuildId)) {
+                                                $completedTasksByGuildId[$gKey] = 0;
+                                            }
+                                            $completedTasksByGuildId[$gKey]++;
                                         }
                                     }
                                     // go one level up
@@ -225,6 +245,10 @@ class GuildWeeklyCheck extends Command
                 }
             }
         }
+
+        // Update Guild Weekly Task Stats for Contests
+        $key = 'guild-weeklys-m-'.date('n-Y', $date);
+        $this->updateGuildStatsByKey($key, $completedTasksByGuildId);
     }
 
     /**
@@ -325,6 +349,37 @@ class GuildWeeklyCheck extends Command
             return $nextLevel->current();
         } else {
             return false;
+        }
+    }
+
+    private function updateGuildStatsByKey($key, $tasksByGuildId) : void
+    {
+        $this->output->writeln([
+            '- Update Guild Weekly Stats for '.count($tasksByGuildId).' Guilds',
+        ]);
+
+        foreach(array_keys($tasksByGuildId) as $guildIdStr) {
+            $guildId = substr($guildIdStr, strlen('guild-'));
+            if(is_numeric($guildId) && $guildId > 0 && !empty($guildId)) {
+                $now = date('Y-m-d H:i:s', time());
+
+                $check = $this->mGuildStatsTbl->select(['guild_idfs' => $guildId, 'stat_key' => $key]);
+                if($check->count() == 0) {
+                    // start of a new month
+                    $this->mGuildStatsTbl->insert([
+                        'guild_idfs' => $guildId,
+                        'stat_key' => $key,
+                        'data' => $tasksByGuildId[$guildIdStr],
+                        'date' => $now
+                    ]);
+                } else {
+                    $currentVal = $check->current()->data;
+                    $this->mGuildStatsTbl->update([
+                        'data' => $currentVal+$tasksByGuildId[$guildIdStr],
+                        'date' => $now
+                    ],['guild_idfs' => $guildId, 'stat_key' => $key]);
+                }
+            }
         }
     }
 }
