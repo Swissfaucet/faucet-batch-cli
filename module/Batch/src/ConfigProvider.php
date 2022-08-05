@@ -26,6 +26,10 @@ use Batch\Command\UserDailyStats\UserDailyStats;
 use Batch\Command\UserDailyStats\UserDailyStatsFactory;
 use Batch\Command\UserOnlineCheck\UserOnlineCheck;
 use Batch\Command\UserOnlineCheck\UserOnlineCheckFactory;
+use Batch\Command\WithdrawStats\WithdrawStats;
+use Batch\Command\WithdrawStats\WithdrawStatsFactory;
+use Batch\Command\WthCurrencyStats\WthCurrencyStats;
+use Batch\Command\WthCurrencyStats\WthCurrencyStatsFactory;
 
 class ConfigProvider
 {
@@ -52,7 +56,9 @@ class ConfigProvider
                 'batch:guild-weekly-check' => GuildWeeklyCheck::class,
                 'batch:shortlink-stats' => ShortlinkStats::class,
                 'batch:user-account-stats' => UserAccountStats::class,
-                'batch:user-daily-stats' => UserDailyStats::class
+                'batch:user-daily-stats' => UserDailyStats::class,
+                'batch:withdraw-stats' => WithdrawStats::class,
+                'batch:withdraw-currency-stats' => WthCurrencyStats::class
             ],
         ];
     }
@@ -72,7 +78,9 @@ class ConfigProvider
                 GuildWeeklyCheck::class => GuildWeeklyCheckFactory::class,
                 ShortlinkStats::class => ShortlinkStatsFactory::class,
                 UserAccountStats::class => UserAccountStatsFactory::class,
-                UserDailyStats::class => UserDailyStatsFactory::class
+                UserDailyStats::class => UserDailyStatsFactory::class,
+                WithdrawStats::class => WithdrawStatsFactory::class,
+                WthCurrencyStats::class => WthCurrencyStatsFactory::class
             ],
         ];
     }
