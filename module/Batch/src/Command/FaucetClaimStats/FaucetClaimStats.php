@@ -145,6 +145,9 @@ class FaucetClaimStats extends Command {
         $key = 'user-claims-w-'.$this->mBatchTools->getWeek($date);
         $this->updateUserStatsByKey($key, $claimsByUserId);
 
+        $key = 'faucet-claims-total';
+        $this->mBatchTools->updateCoreStatsByKey($key, $claimsCount);
+
         return $claimsCount;
     }
 

@@ -22,6 +22,14 @@ class BatchTools {
      */
     protected TableGateway $mGuildUserTbl;
 
+    private TableGateway $mAchievTbl;
+
+    private TableGateway $mAchievUserTbl;
+
+    private TableGateway $mStatsTbl;
+
+    private TableGateway $mUserStatsTbl;
+
     /**
      * Constructor
      *
@@ -33,6 +41,10 @@ class BatchTools {
         // Guild Weekly Task Addon
         $this->mGuildUserTbl = new TableGateway('faucet_guild_user', $mapper);
         $this->mGuildTaskStatusTbl = new TableGateway('faucet_guild_weekly_status', $mapper);
+        $this->mAchievTbl = new TableGateway('faucet_achievement', $mapper);
+        $this->mAchievUserTbl = new TableGateway('faucet_achievement_user', $mapper);
+        $this->mStatsTbl = new TableGateway('core_statistic', $mapper);
+        $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
     }
 
     /**
@@ -154,5 +166,134 @@ class BatchTools {
         ]);
 
         return true;
+    }
+
+    /**
+     * Complete Achievement for User if goal is reached
+     *
+     * @param $userId
+     * @param $achievType
+     * @param $value
+     * @return bool
+     */
+    public function completeUserAchievement($userId, $achievType, $value): bool
+    {
+        if(!is_numeric($userId) || $userId <= 0) {
+            return false;
+        }
+        $achievement = $this->mAchievTbl->select(['type' => $achievType, 'series' => 0]);
+        if($achievement->count() > 0) {
+            $achievement = $achievement->current();
+
+            if($value >= $achievement->goal) {
+                // check if user has already claimed achievement
+                $check = $this->mAchievUserTbl->select([
+                    'user_idfs' => $userId,
+                    'achievement_idfs' => $achievement->Achievement_ID]);
+                if($check->count() == 0) {
+                    $this->mAchievUserTbl->insert([
+                        'user_idfs' => $userId,
+                        'achievement_idfs' => $achievement->Achievement_ID,
+                        'date' => date('Y-m-d H:i:s', time())
+                    ]);
+                }
+
+                $checkNextLevel = true;
+                $nextLevelId = $achievement->Achievement_ID;
+                while($checkNextLevel) {
+                    $nextLevelAchiev = $this->mAchievTbl->select(['series' => $nextLevelId]);
+                    if($nextLevelAchiev->count() > 0) {
+                        $nextLevelAchiev = $nextLevelAchiev->current();
+                        $nextLevelId = $nextLevelAchiev->Achievement_ID;
+
+                        if($value >= $nextLevelAchiev->goal) {
+                            // check if user has already claimed achievement
+                            $check = $this->mAchievUserTbl->select([
+                                'user_idfs' => $userId,
+                                'achievement_idfs' => $nextLevelAchiev->Achievement_ID]);
+                            if($check->count() == 0) {
+                                $this->mAchievUserTbl->insert([
+                                    'user_idfs' => $userId,
+                                    'achievement_idfs' => $nextLevelAchiev->Achievement_ID,
+                                    'date' => date('Y-m-d H:i:s', time())
+                                ]);
+                            }
+                        } else {
+                            $checkNextLevel = false;
+                        }
+                    } else {
+                        $checkNextLevel = false;
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        return true;
+    }
+
+    public function updateCoreStatsByKey($key, $newVal, $replace = false) : void
+    {
+        $now = date('Y-m-d H:i:s', time());
+
+        $check = $this->mStatsTbl->select(['stats_key' => $key]);
+        if($check->count() == 0) {
+            // start of a new month
+            $this->mStatsTbl->insert([
+                'stats_key' => $key,
+                'data' => $newVal,
+                'date' => $now
+            ]);
+        } else {
+            if(!$replace) {
+                $currentVal = $check->current()->data;
+                $this->mStatsTbl->update([
+                    'data' => $currentVal+$newVal,
+                    'date' => $now
+                ],['stats_key' => $key]);
+            } else {
+                $this->mStatsTbl->update([
+                    'data' => $newVal,
+                    'date' => $now
+                ],['stats_key' => $key]);
+            }
+        }
+    }
+
+    /**
+     * Update User Statistics by Key
+     *
+     * @param $key
+     * @param $valuesByUserId
+     */
+    public function updateUserStatsByKey($key, $valuesByUserId, $checkAchievementKey = false) : void
+    {
+        foreach(array_keys($valuesByUserId) as $userIdStr) {
+            $userId = substr($userIdStr, strlen('user-'));
+            if(is_numeric($userId) && $userId > 0 && !empty($userId)) {
+                $now = date('Y-m-d H:i:s', time());
+
+                $check = $this->mUserStatsTbl->select(['user_idfs' => $userId, 'stat_key' => $key]);
+                if($check->count() == 0) {
+                    // start of a new month
+                    $this->mUserStatsTbl->insert([
+                        'user_idfs' => $userId,
+                        'stat_key' => $key,
+                        'stat_data' => $valuesByUserId[$userIdStr],
+                        'date' => $now
+                    ]);
+                } else {
+                    $currentVal = $check->current()->stat_data;
+                    $this->mUserStatsTbl->update([
+                        'stat_data' => $currentVal+$valuesByUserId[$userIdStr],
+                        'date' => $now
+                    ],['user_idfs' => $userId, 'stat_key' => $key]);
+                }
+                if($checkAchievementKey) {
+                    $this->completeUserAchievement($userId, $checkAchievementKey, $valuesByUserId[$userIdStr]);
+                }
+            }
+        }
     }
 }

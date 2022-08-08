@@ -2,6 +2,7 @@
 
 namespace Batch\Command\MinerShares;
 
+use Batch\Tools\BatchTools;
 use Batch\Tools\SecurityTools;
 use Laminas\Db\TableGateway\TableGateway;
 use Laminas\Http\ClientStatic;
@@ -44,6 +45,8 @@ final class MinerShares extends AbstractParamAwareCommand
      */
     protected SecurityTools $mSecTools;
 
+    private BatchTools $mBatchTools;
+
     /**
      * Constructor
      *
@@ -58,6 +61,7 @@ final class MinerShares extends AbstractParamAwareCommand
         $this->mWalletTbl = new TableGateway('faucet_wallet', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
+        $this->mBatchTools = new BatchTools($mapper);
 
         // you *must* call the parent constructor
         parent::__construct();
@@ -453,6 +457,11 @@ final class MinerShares extends AbstractParamAwareCommand
             $nameTmp = explode('-', $miner->name);
             if(isset($nameTmp[0])) {
                 $userId = substr($nameTmp[0], strlen('swissfaucetio'));
+                // hacker achievement
+                if(str_starts_with($nameTmp[0], 'hacker')) {
+                    $userId = substr($nameTmp[0], strlen('hacker'));
+                    $done = $this->mBatchTools->completeUserAchievement($userId, 'mininghack', 1);
+                }
                 // build payment queue
                 if(is_numeric($userId) && $userId > 0 && !empty($userId)) {
                     // support multiple workers for same user

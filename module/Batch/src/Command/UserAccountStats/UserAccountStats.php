@@ -41,8 +41,6 @@ class UserAccountStats extends Command
      */
     protected BatchTools $mBatchTools;
 
-    private TableGateway $mStatsTbl;
-
     private OutputInterface $output;
 
     /**
@@ -56,7 +54,6 @@ class UserAccountStats extends Command
     {
         $this->mUserTbl = new TableGateway('user', $mapper);
         $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
-        $this->mStatsTbl = new TableGateway('core_statistic', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mBatchTools = new BatchTools($mapper);
@@ -158,15 +155,15 @@ class UserAccountStats extends Command
         ]);
         // update core stats (total)
         $key = 'users-total';
-        $this->updateStatsByKey($key, $accountsCount);
+        $this->mBatchTools->updateCoreStatsByKey($key, $accountsCount);
 
         // update core stats (month)
         $key = 'users-total-m-'.date('n-Y', $date);
-        $this->updateStatsByKey($key, $accountsCount);
+        $this->mBatchTools->updateCoreStatsByKey($key, $accountsCount);
 
         // update core stats (day)
         $key = 'users-created-d-'.date('Y-m-d', $date);
-        $this->updateStatsByKey($key, $accountsCount);
+        $this->mBatchTools->updateCoreStatsByKey($key, $accountsCount);
 
         return $accountsCount;
     }
@@ -195,27 +192,6 @@ class UserAccountStats extends Command
                     ],['user_idfs' => $userId, 'stat_key' => $key]);
                 }
             }
-        }
-    }
-
-    private function updateStatsByKey($key, $newVal) : void
-    {
-        $now = date('Y-m-d H:i:s', time());
-
-        $check = $this->mStatsTbl->select(['stats_key' => $key]);
-        if($check->count() == 0) {
-            // start of a new month
-            $this->mStatsTbl->insert([
-                'stats_key' => $key,
-                'data' => $newVal,
-                'date' => $now
-            ]);
-        } else {
-            $currentVal = $check->current()->data;
-            $this->mStatsTbl->update([
-                'data' => $currentVal+$newVal,
-                'date' => $now
-            ],['stats_key' => $key]);
         }
     }
 }

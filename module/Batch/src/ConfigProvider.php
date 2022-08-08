@@ -20,6 +20,8 @@ use Batch\Command\OfferwallStats\OfferwallStats;
 use Batch\Command\OfferwallStats\OfferwallStatsFactory;
 use Batch\Command\ShortlinkStats\ShortlinkStats;
 use Batch\Command\ShortlinkStats\ShortlinkStatsFactory;
+use Batch\Command\TransactionStats\TransactionStats;
+use Batch\Command\TransactionStats\TransactionStatsFactory;
 use Batch\Command\UserAccountStats\UserAccountStats;
 use Batch\Command\UserAccountStats\UserAccountStatsFactory;
 use Batch\Command\UserDailyStats\UserDailyStats;
@@ -58,7 +60,8 @@ class ConfigProvider
                 'batch:user-account-stats' => UserAccountStats::class,
                 'batch:user-daily-stats' => UserDailyStats::class,
                 'batch:withdraw-stats' => WithdrawStats::class,
-                'batch:withdraw-currency-stats' => WthCurrencyStats::class
+                'batch:withdraw-currency-stats' => WthCurrencyStats::class,
+                'batch:transaction-stats' => TransactionStats::class
             ],
         ];
     }
@@ -80,7 +83,8 @@ class ConfigProvider
                 UserAccountStats::class => UserAccountStatsFactory::class,
                 UserDailyStats::class => UserDailyStatsFactory::class,
                 WithdrawStats::class => WithdrawStatsFactory::class,
-                WthCurrencyStats::class => WthCurrencyStatsFactory::class
+                WthCurrencyStats::class => WthCurrencyStatsFactory::class,
+                TransactionStats::class => TransactionStatsFactory::class
             ],
         ];
     }

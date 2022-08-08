@@ -138,6 +138,7 @@ class ShortlinkStats extends Command {
         $linksByUserId = [];
         $startedByProviderId = [];
         $completedByProviderId = [];
+        $totalLinksCompleted = 0;
         foreach($linksToday as $link) {
             if(!array_key_exists('user-'.$link->user_idfs, $linksByUserId)) {
                 $linksByUserId['user-'.$link->user_idfs] = 0;
@@ -151,6 +152,7 @@ class ShortlinkStats extends Command {
             }
             // only count completed links
             if(strlen($link->date_completed) > 5 && $link->date_completed != '0000-00-00 00:00:00') {
+                $totalLinksCompleted++;
                 $completedByProviderId['sh-'.$link->shortlink_idfs]++;
                 $linksByUserId['user-'.$link->user_idfs]++;
             }
@@ -174,6 +176,10 @@ class ShortlinkStats extends Command {
 
         // update shortlink difficutly
         $this->updateShortlinkDifficulty();
+
+        // update total shortlinks
+        $key = 'shortlinks-total-links';
+        $this->mBatchTools->updateCoreStatsByKey($key, $totalLinksCompleted);
 
         return $linksCount;
     }

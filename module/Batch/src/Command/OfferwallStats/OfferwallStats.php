@@ -193,6 +193,9 @@ class OfferwallStats extends Command {
         $key = 'user-offerbig-w-'.$weekNo;
         $this->updateUserStatsByKey($key, $offersBigByUserId, $weekNo, $output, 'ofbig');
 
+        $key = 'offerwalls-total-offers';
+        $this->mBatchTools->updateCoreStatsByKey($key, $offersCount);
+
         return $offersCount;
     }
 
