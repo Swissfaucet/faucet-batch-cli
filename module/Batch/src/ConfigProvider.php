@@ -2,6 +2,8 @@
 
 namespace Batch;
 
+use Batch\Command\CacheGuildMembers\CacheGuildMembers;
+use Batch\Command\CacheGuildMembers\CacheGuildMembersFactory;
 use Batch\Command\CheckPtcPayments\CheckPtcPayments;
 use Batch\Command\CheckPtcPayments\CheckPtcPaymentsFactory;
 use Batch\Command\DailyTaskStats\DailyTaskStats;
@@ -18,10 +20,14 @@ use Batch\Command\MinerStats\MinerStats;
 use Batch\Command\MinerStats\MinerStatsFactory;
 use Batch\Command\OfferwallStats\OfferwallStats;
 use Batch\Command\OfferwallStats\OfferwallStatsFactory;
+use Batch\Command\RpsGameStats\RpsGameStats;
+use Batch\Command\RpsGameStats\RpsGameStatsFactory;
 use Batch\Command\ShortlinkStats\ShortlinkStats;
 use Batch\Command\ShortlinkStats\ShortlinkStatsFactory;
 use Batch\Command\TransactionStats\TransactionStats;
 use Batch\Command\TransactionStats\TransactionStatsFactory;
+use Batch\Command\UnlockShipGames\UnlockShipGames;
+use Batch\Command\UnlockShipGames\UnlockShipGamesFactory;
 use Batch\Command\UserAccountStats\UserAccountStats;
 use Batch\Command\UserAccountStats\UserAccountStatsFactory;
 use Batch\Command\UserDailyStats\UserDailyStats;
@@ -61,7 +67,10 @@ class ConfigProvider
                 'batch:user-daily-stats' => UserDailyStats::class,
                 'batch:withdraw-stats' => WithdrawStats::class,
                 'batch:withdraw-currency-stats' => WthCurrencyStats::class,
-                'batch:transaction-stats' => TransactionStats::class
+                'batch:transaction-stats' => TransactionStats::class,
+                'batch:cache-guild-members' => CacheGuildMembers::class,
+                'batch:rps-game-stats' => RpsGameStats::class,
+                'batch:unlock-ship-games' => UnlockShipGames::class
             ],
         ];
     }
@@ -84,7 +93,10 @@ class ConfigProvider
                 UserDailyStats::class => UserDailyStatsFactory::class,
                 WithdrawStats::class => WithdrawStatsFactory::class,
                 WthCurrencyStats::class => WthCurrencyStatsFactory::class,
-                TransactionStats::class => TransactionStatsFactory::class
+                TransactionStats::class => TransactionStatsFactory::class,
+                CacheGuildMembers::class => CacheGuildMembersFactory::class,
+                RpsGameStats::class => RpsGameStatsFactory::class,
+                UnlockShipGames::class => UnlockShipGamesFactory::class
             ],
         ];
     }

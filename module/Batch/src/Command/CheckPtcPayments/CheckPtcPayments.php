@@ -102,7 +102,7 @@ class CheckPtcPayments extends Command
             ]);
         }
 
-        //$this->mSecTools->updateCoreSetting('job_ptc_payments_lastrun', date('Y-m-d H:i:s', time()));
+        $this->mSecTools->updateCoreSetting('job_ptc_payments_lastrun', date('Y-m-d H:i:s', time()));
 
         return Command::SUCCESS;
     }

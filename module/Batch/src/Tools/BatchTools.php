@@ -267,7 +267,7 @@ class BatchTools {
      * @param $key
      * @param $valuesByUserId
      */
-    public function updateUserStatsByKey($key, $valuesByUserId, $checkAchievementKey = false) : void
+    public function updateUserStatsByKey($key, $valuesByUserId, $checkAchievementKey = false, $overwrite = false) : void
     {
         foreach(array_keys($valuesByUserId) as $userIdStr) {
             $userId = substr($userIdStr, strlen('user-'));
@@ -284,9 +284,14 @@ class BatchTools {
                         'date' => $now
                     ]);
                 } else {
-                    $currentVal = $check->current()->stat_data;
+                    if($overwrite) {
+                        $newVal = $valuesByUserId[$userIdStr];
+                    } else {
+                        $currentVal = $check->current()->stat_data;
+                        $newVal = $currentVal+$valuesByUserId[$userIdStr];
+                    }
                     $this->mUserStatsTbl->update([
-                        'stat_data' => $currentVal+$valuesByUserId[$userIdStr],
+                        'stat_data' => $newVal,
                         'date' => $now
                     ],['user_idfs' => $userId, 'stat_key' => $key]);
                 }

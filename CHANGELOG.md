@@ -6,7 +6,6 @@ All notable changes to this project will be documented in this file, in reverse 
 - Check all Achievements
 - Achievement Point Stats Batch (Alltime + Month)
 - Guild Activity Batch
-- Transaction Stats Batch
 
 ## 1.2.2
 - Withdraw Stats

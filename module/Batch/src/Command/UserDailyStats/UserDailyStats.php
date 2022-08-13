@@ -37,6 +37,8 @@ class UserDailyStats extends Command
 
     private OutputInterface $output;
 
+    private TableGateway $mUserStatsTbl;
+
     /**
      * Constructor
      *
@@ -48,6 +50,7 @@ class UserDailyStats extends Command
     {
         $this->mUserTbl = new TableGateway('user', $mapper);
         $this->mStatsTbl = new TableGateway('core_statistic', $mapper);
+        $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mBatchTools = new BatchTools($mapper);
@@ -128,6 +131,27 @@ class UserDailyStats extends Command
         // Count Entries
         $accountsCount = $accountsToday->count();
 
+        // get cached total xp
+        $totalXpCache = $this->mUserStatsTbl->select(['stat_key' => 'user-xp-cache']);
+        $xpCacheByUserId = [];
+        foreach($totalXpCache as $xpC) {
+            $xpCacheByUserId['user-'.$xpC->user_idfs] = $xpC->stat_data;
+        }
+
+        // calculate user xp today
+        $xpGainedByUserId = [];
+        $xpUpdatedCacheByUserId = [];
+        foreach($accountsToday as $acc) {
+            $accKey = 'user-'.$acc->User_ID;
+            if(array_key_exists($accKey, $xpCacheByUserId)) {
+                $xpGained = $acc->xp_total - $xpCacheByUserId[$accKey];
+            } else {
+                $xpGained = 0;
+            }
+            $xpGainedByUserId[$accKey] = $xpGained;
+            $xpUpdatedCacheByUserId[$accKey] = $acc->xp_total;
+        }
+
         $this->output->writeLn([
             '- Update Core Stats'
         ]);
@@ -139,6 +163,14 @@ class UserDailyStats extends Command
         // update core stats (day)
         $key = 'users-active-d-'.date('Y-m-d', $date);
         $this->updateStatsByKey($key, $accountsCount);
+
+        // update user stats (cache / alltime)
+        $key = 'user-xp-cache';
+        $this->mBatchTools->updateUserStatsByKey($key, $xpUpdatedCacheByUserId, false, true);
+
+        // update user stats (month)
+        $key = 'user-xp-m-'.date('n-Y', $date);
+        $this->mBatchTools->updateUserStatsByKey($key, $xpGainedByUserId);
 
         return $accountsCount;
     }

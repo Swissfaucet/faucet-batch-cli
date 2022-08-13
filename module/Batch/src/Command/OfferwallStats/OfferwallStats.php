@@ -128,6 +128,7 @@ class OfferwallStats extends Command {
         $offersMedByUserId = [];
         $offersSmallByUserId = [];
         $offersTinyByUserId = [];
+        $coinsEarnedByUserId = [];
         foreach($offersToday as $offer) {
             // big offers have 5000 coins reward or more
             if($offer->amount >= 50000) {
@@ -151,6 +152,10 @@ class OfferwallStats extends Command {
                 }
                 $offersTinyByUserId['user-'.$offer->user_idfs]++;
             }
+            if(!array_key_exists('user-'.$offer->user_idfs, $coinsEarnedByUserId)) {
+                $coinsEarnedByUserId['user-'.$offer->user_idfs] = 0;
+            }
+            $coinsEarnedByUserId['user-'.$offer->user_idfs]+=$offer->amount;
         }
 
         // update user stats (alltime)
@@ -166,6 +171,9 @@ class OfferwallStats extends Command {
         $key = 'user-offerbig-total';
         $this->updateUserStatsByKey($key, $offersBigByUserId);
 
+        $key = 'user-offerearned-total';
+        $this->updateUserStatsByKey($key, $coinsEarnedByUserId);
+
         // update user stats (month)
         $key = 'user-offertiny-m-'.date('n-Y', $date);
         $this->updateUserStatsByKey($key, $offersTinyByUserId);
@@ -178,6 +186,9 @@ class OfferwallStats extends Command {
 
         $key = 'user-offerbig-m-'.date('n-Y', $date);
         $this->updateUserStatsByKey($key, $offersBigByUserId);
+
+        $key = 'user-offerearned-m-'.date('n-Y', $date);
+        $this->updateUserStatsByKey($key, $coinsEarnedByUserId);
 
         // update user stats (week)
         $weekNo = $this->mBatchTools->getWeek($date);
