@@ -68,38 +68,11 @@ class RpsGameStats extends Command {
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_rps_stats_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_rps_stats_lastrun');
-
-        // only run batch once per day
-        if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
-            try {
-                $stop_date = new \DateTime($lastDate);
-                $stop_date->modify('+1 day');
-                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-            } catch (\Exception $e) {
-                $output->writeln([
-                    '## ERROR - COULD NOT INITIALIZE DATE',
-                ]);
-                return Command::SUCCESS;
-            }
-        } else {
-            $output->writeln([
-                '## ERROR - BATCH HAS ALREADY RUN TODAY',
-            ]);
-            return Command::SUCCESS;
-        }
-
+        $tasksDone = $this->generateRpsGameStats();
         $output->writeln([
-            'Date to process: '.$stop_date->format('Y-m-d')
+            '- Processed '.$tasksDone.' rps games',
         ]);
 
-        $tasksDone = $this->generateRpsGameStats($statDate);
-        $output->writeln([
-            '- Processed '.$tasksDone.' faucet claims',
-        ]);
-
-        $this->mSecTools->updateCoreSetting('job_rps_stats_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_rps_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
@@ -110,10 +83,10 @@ class RpsGameStats extends Command {
         return Command::SUCCESS;
     }
 
-    private function generateRpsGameStats($date) {
+    private function generateRpsGameStats() {
         // load shares
         $tWh = new Where();
-        $tWh->like('date_finished', date('Y-m-d', $date).'%');
+        $tWh->equalTo('stats_processed', 0);
         $tSel = new Select($this->mGameTbl->getTable());
         $tSel->where($tWh);
         //  $tSel->order('date ASC');
@@ -126,15 +99,21 @@ class RpsGameStats extends Command {
         // get claims done by user
         $gamesByUserId = [];
         foreach($gamesToday as $game) {
-            $gamesCount++;
-            if(!array_key_exists('user-'.$game->host_user_idfs, $gamesByUserId)) {
-                $gamesByUserId['user-'.$game->host_user_idfs] = 0;
+            if(strlen($game->date_finished) > 5) {
+                $gamesCount++;
+                if(!array_key_exists('user-'.$game->host_user_idfs, $gamesByUserId)) {
+                    $gamesByUserId['user-'.$game->host_user_idfs] = 0;
+                }
+                $gamesByUserId['user-'.$game->host_user_idfs]++;
+                if(!array_key_exists('user-'.$game->client_user_idfs, $gamesByUserId)) {
+                    $gamesByUserId['user-'.$game->client_user_idfs] = 0;
+                }
+                $gamesByUserId['user-'.$game->client_user_idfs]++;
+
+                $this->mGameTbl->update([
+                    'stats_processed' => 1
+                ],['Match_ID' => $game->Match_ID]);
             }
-            $gamesByUserId['user-'.$game->host_user_idfs]++;
-            if(!array_key_exists('user-'.$game->client_user_idfs, $gamesByUserId)) {
-                $gamesByUserId['user-'.$game->client_user_idfs] = 0;
-            }
-            $gamesByUserId['user-'.$game->client_user_idfs]++;
         }
 
         // update user stats (alltime)
@@ -142,7 +121,7 @@ class RpsGameStats extends Command {
         $this->updateUserStatsByKey($key, $gamesByUserId);
 
         // update user stats (month)
-        $key = 'user-rps-game-m-'.date('n-Y', $date);
+        $key = 'user-rps-game-m-'.date('n-Y', time());
         $this->updateUserStatsByKey($key, $gamesByUserId);
 
         $key = 'faucet-rps-game-total';

@@ -74,47 +74,21 @@ class MinerStats extends Command {
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_mining_stats_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_mining_stats_lastrun');
+        $now = time();
 
-        // only run batch once per day
-        if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
-            try {
-                $stop_date = new \DateTime($lastDate);
-                $stop_date->modify('+1 day');
-                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-            } catch (\Exception $e) {
-                $output->writeln([
-                    '## ERROR - COULD NOT INITIALIZE DATE',
-                ]);
-                return Command::SUCCESS;
-            }
-        } else {
-            $output->writeln([
-                '## ERROR - BATCH HAS ALREADY RUN TODAY',
-            ]);
-            return Command::SUCCESS;
-        }
-
-        $output->writeln([
-            'Date to process: '.$stop_date->format('Y-m-d')
-        ]);
-
-
-        $sharesEtc = $this->calculateCoinStats($statDate, 'etc', $output);
+        $sharesEtc = $this->calculateCoinStats($now, 'etc', $output);
         $output->writeln([
             '- Processed '.$sharesEtc.' etc shares',
         ]);
-        $sharesRvn = $this->calculateCoinStats($statDate, 'rvn', $output);
+        $sharesRvn = $this->calculateCoinStats($now, 'rvn', $output);
         $output->writeln([
             '- Processed '.$sharesRvn.' rvn shares',
         ]);
-        $sharesXmr = $this->calculateCoinStats($statDate, 'xmr', $output);
+        $sharesXmr = $this->calculateCoinStats($now, 'xmr', $output);
         $output->writeln([
             '- Processed '.$sharesXmr.' xmr shares',
         ]);
 
-        $this->mSecTools->updateCoreSetting('job_mining_stats_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_mining_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
@@ -136,7 +110,8 @@ class MinerStats extends Command {
         // load shares
         $tWh = new Where();
         $tWh->like('coin', $coin);
-        $tWh->like('date', date('Y-m-d', $date).'%');
+        //$tWh->like('date', date('Y-m-d', $date).'%');
+        $tWh->equalTo('stats_processed', 0);
         $tSel = new Select($this->mSharesTbl->getTable());
         $tSel->where($tWh);
         $tSel->order('date ASC');
@@ -153,6 +128,7 @@ class MinerStats extends Command {
                 $sharesByUserId['user-'.$share->user_idfs] = 0;
             }
             $sharesByUserId['user-'.$share->user_idfs] += $share->amount_coin;
+            $this->mSharesTbl->update(['stats_processed' => 1],['id' => $share->id]);
         }
 
         // update user stats (alltime)

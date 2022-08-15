@@ -79,38 +79,11 @@ class ShortlinkStats extends Command {
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_shortlink_stats_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_shortlink_stats_lastrun');
-
-        // only run batch once per day
-        if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
-            try {
-                $stop_date = new \DateTime($lastDate);
-                $stop_date->modify('+1 day');
-                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-            } catch (\Exception $e) {
-                $output->writeln([
-                    '## ERROR - COULD NOT INITIALIZE DATE',
-                ]);
-                return Command::SUCCESS;
-            }
-        } else {
-            $output->writeln([
-                '## ERROR - BATCH HAS ALREADY RUN TODAY',
-            ]);
-            return Command::SUCCESS;
-        }
-
-        $output->writeln([
-            'Date to process: '.$stop_date->format('Y-m-d')
-        ]);
-
-        $linksDone = $this->generateShortlinkStats($statDate, $output);
+        $linksDone = $this->generateShortlinkStats(time(), $output);
         $output->writeln([
             '- Processed '.$linksDone.' shortlinks',
         ]);
 
-        $this->mSecTools->updateCoreSetting('job_shortlink_stats_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_shortlink_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
@@ -124,7 +97,7 @@ class ShortlinkStats extends Command {
     private function generateShortlinkStats($date, $output) {
         // load shares
         $tWh = new Where();
-        $tWh->like('date_started', date('Y-m-d', $date).'%');
+        $tWh->equalTo('stats_processed', 0);
         $tSel = new Select($this->mLinksDoneTbl->getTable());
         $tSel->where($tWh);
         $tSel->order('date_started ASC');
@@ -156,6 +129,7 @@ class ShortlinkStats extends Command {
                 $completedByProviderId['sh-'.$link->shortlink_idfs]++;
                 $linksByUserId['user-'.$link->user_idfs]++;
             }
+            $this->mLinksDoneTbl->update(['stats_processed' => 1], ['id' => $link->id]);
         }
 
         // update user stats (alltime)

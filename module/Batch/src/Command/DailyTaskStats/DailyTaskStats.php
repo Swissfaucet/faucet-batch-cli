@@ -68,38 +68,11 @@ class DailyTaskStats extends Command {
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_dailys_stats_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_dailys_stats_lastrun');
-
-        // only run batch once per day
-        if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
-            try {
-                $stop_date = new \DateTime($lastDate);
-                $stop_date->modify('+1 day');
-                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-            } catch (\Exception $e) {
-                $output->writeln([
-                    '## ERROR - COULD NOT INITIALIZE DATE',
-                ]);
-                return Command::SUCCESS;
-            }
-        } else {
-            $output->writeln([
-                '## ERROR - BATCH HAS ALREADY RUN TODAY',
-            ]);
-            return Command::SUCCESS;
-        }
-
-        $output->writeln([
-            'Date to process: '.$stop_date->format('Y-m-d')
-        ]);
-
-        $tasksDone = $this->generateDailyTaskStats($statDate, $output);
+        $tasksDone = $this->generateDailyTaskStats(time(), $output);
         $output->writeln([
             '- Processed '.$tasksDone.' daily tasks',
         ]);
 
-        $this->mSecTools->updateCoreSetting('job_dailys_stats_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_dailys_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
@@ -113,7 +86,7 @@ class DailyTaskStats extends Command {
     private function generateDailyTaskStats($date, $output) {
         // load shares
         $tWh = new Where();
-        $tWh->like('date', date('Y-m-d', $date).'%');
+        $tWh->equalTo('stats_processed', 0);
         $tSel = new Select($this->mTasksDoneTbl->getTable());
         $tSel->where($tWh);
         $tSel->order('date ASC');
@@ -130,6 +103,7 @@ class DailyTaskStats extends Command {
                 $dailyTasksByUserId['user-'.$offer->user_idfs] = 0;
             }
             $dailyTasksByUserId['user-'.$offer->user_idfs]++;
+            $this->mTasksDoneTbl->update(['stats_processed' => 1], ['id' => $offer->id]);
         }
 
         // update user stats (alltime)

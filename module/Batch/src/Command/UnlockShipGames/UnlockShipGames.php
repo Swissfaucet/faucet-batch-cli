@@ -45,6 +45,11 @@ class UnlockShipGames extends Command {
     private OutputInterface $output;
 
     /**
+     * @var TableGateway
+     */
+    private TableGateway $mRpsGameTbl;
+
+    /**
      * Constructor
      *
      * UserResource constructor.
@@ -54,6 +59,7 @@ class UnlockShipGames extends Command {
     public function __construct($mapper)
     {
         $this->mGameTbl = new TableGateway('battleship_match', $mapper);
+        $this->mRpsGameTbl = new TableGateway('faucet_game_match', $mapper);
         $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
@@ -70,17 +76,22 @@ class UnlockShipGames extends Command {
         // log start
         $output->writeln([
             '=====================',
-            'Unlocking Locked Battleship Games @ ' . date('Y-m-d H:i:s', time()),
+            'Unlocking Locked Games @ ' . date('Y-m-d H:i:s', time()),
             '---------------------',
         ]);
 
         $tasksDone = $this->generateUnlockShipGames();
         $output->writeln([
-            '- Processed '.$tasksDone.' locked games',
+            '- Processed '.$tasksDone.' locked battleships games',
+        ]);
+
+        $tasksDone = $this->generateUnlockRpsGames();
+        $output->writeln([
+            '- Processed '.$tasksDone.' locked rps games',
         ]);
 
         $output->writeln([
-            '-- Unlock Battleship Games completed successfully',
+            '-- Unlock Games completed successfully',
             '=====================',
         ]);
 
@@ -102,6 +113,30 @@ class UnlockShipGames extends Command {
                 '- Unlock Game #'.$game->Match_ID,
             ]);
             $this->mGameTbl->update([
+                'client_user_idfs' => null,
+                'date_matched' => null
+            ],['Match_ID' => $game->Match_ID]);
+        }
+
+        return $gamesToday->count();
+    }
+
+    private function generateUnlockRpsGames() {
+        // load shares
+        $tWh = new Where();
+        $tWh->lessThanOrEqualTo('date_matched', date('Y-m-d H:i:s', strtotime('-10 minutes')));
+        $tWh->isNotNull('client_user_idfs');
+        $tWh->isNull('date_finished');
+        $tSel = new Select($this->mRpsGameTbl->getTable());
+        $tSel->where($tWh);
+        //  $tSel->order('date ASC');
+
+        $gamesToday = $this->mRpsGameTbl->selectWith($tSel);
+        foreach($gamesToday as $game) {
+            $this->output->writeln([
+                '- Unlock RPS Game #'.$game->Match_ID,
+            ]);
+            $this->mRpsGameTbl->update([
                 'client_user_idfs' => null,
                 'date_matched' => null
             ],['Match_ID' => $game->Match_ID]);

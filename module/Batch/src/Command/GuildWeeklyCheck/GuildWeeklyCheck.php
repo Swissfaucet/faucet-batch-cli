@@ -109,31 +109,7 @@ class GuildWeeklyCheck extends Command
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_guild_weeklys_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_guild_weeklys_lastrun');
-
-        // only run batch once per day
-        if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
-            try {
-                $stop_date = new \DateTime($lastDate);
-                $stop_date->modify('+1 day');
-                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-            } catch (\Exception $e) {
-                $output->writeln([
-                    '## ERROR - COULD NOT INITIALIZE DATE',
-                ]);
-                return Command::SUCCESS;
-            }
-        } else {
-            $output->writeln([
-                '## ERROR - BATCH HAS ALREADY RUN TODAY',
-            ]);
-            return Command::SUCCESS;
-        }
-
-        $output->writeln([
-            'Date to process: '.$stop_date->format('Y-m-d')
-        ]);
+        $statDate = time();
 
         $baseTasks = $this->loadGuildWeeklyTasks();
         $weekNo = $this->mBatchTools->getWeek($statDate);
@@ -144,7 +120,6 @@ class GuildWeeklyCheck extends Command
 
         $this->processGuildWeeklyTasks($baseTasks, $weekNo, $statDate);
 
-        $this->mSecTools->updateCoreSetting('job_guild_weeklys_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_guild_weeklys_lastrun', date('Y-m-d H:i:s', time()));
 
         return Command::SUCCESS;

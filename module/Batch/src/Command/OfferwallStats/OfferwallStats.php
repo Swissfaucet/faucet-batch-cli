@@ -68,38 +68,12 @@ class OfferwallStats extends Command {
             '---------------------',
         ]);
 
-        $lastDate = $this->mSecTools->getCoreSetting('job_offerwall_stats_date');
-        $lastrun = $this->mSecTools->getCoreSetting('job_offerwall_stats_lastrun');
 
-        // only run batch once per day
-        if(date('Y-m-d', strtotime($lastrun)) != date('Y-m-d', time())) {
-            try {
-                $stop_date = new \DateTime($lastDate);
-                $stop_date->modify('+1 day');
-                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
-            } catch (\Exception $e) {
-                $output->writeln([
-                    '## ERROR - COULD NOT INITIALIZE DATE',
-                ]);
-                return Command::SUCCESS;
-            }
-        } else {
-            $output->writeln([
-                '## ERROR - BATCH HAS ALREADY RUN TODAY',
-            ]);
-            return Command::SUCCESS;
-        }
-
-        $output->writeln([
-            'Date to process: '.$stop_date->format('Y-m-d')
-        ]);
-
-        $offersDone = $this->generateOfferwallStats($statDate, $output);
+        $offersDone = $this->generateOfferwallStats(time(), $output);
         $output->writeln([
             '- Processed '.$offersDone.' offers',
         ]);
 
-        $this->mSecTools->updateCoreSetting('job_offerwall_stats_date', date('Y-m-d', $statDate));
         $this->mSecTools->updateCoreSetting('job_offerwall_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
@@ -113,7 +87,8 @@ class OfferwallStats extends Command {
     private function generateOfferwallStats($date, $output) {
         // load shares
         $tWh = new Where();
-        $tWh->like('date_completed', date('Y-m-d', $date).'%');
+        //$tWh->like('date_completed', date('Y-m-d', $date).'%');
+        $tWh->equalTo('stats_processed', 0);
         $tSel = new Select($this->mOffersDoneTbl->getTable());
         $tSel->where($tWh);
         $tSel->order('date_completed ASC');
@@ -156,6 +131,7 @@ class OfferwallStats extends Command {
                 $coinsEarnedByUserId['user-'.$offer->user_idfs] = 0;
             }
             $coinsEarnedByUserId['user-'.$offer->user_idfs]+=$offer->amount;
+            $this->mOffersDoneTbl->update(['stats_processed' => 1],['user_idfs' => $offer->user_idfs, 'offerwall_idfs' => $offer->offerwall_idfs, 'date_completed' => $offer->date_completed]);
         }
 
         // update user stats (alltime)

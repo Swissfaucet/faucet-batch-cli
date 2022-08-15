@@ -8,6 +8,8 @@ use Batch\Command\CheckPtcPayments\CheckPtcPayments;
 use Batch\Command\CheckPtcPayments\CheckPtcPaymentsFactory;
 use Batch\Command\DailyTaskStats\DailyTaskStats;
 use Batch\Command\DailyTaskStats\DailyTaskStatsFactory;
+use Batch\Command\FakeAccountCheck\FakeAccountCheck;
+use Batch\Command\FakeAccountCheck\FakeAccountCheckFactory;
 use Batch\Command\FaucetClaimStats\FaucetClaimStats;
 use Batch\Command\FaucetClaimStats\FaucetClaimStatsFactory;
 use Batch\Command\GuildWeeklyCheck\GuildWeeklyCheck;
@@ -70,7 +72,8 @@ class ConfigProvider
                 'batch:transaction-stats' => TransactionStats::class,
                 'batch:cache-guild-members' => CacheGuildMembers::class,
                 'batch:rps-game-stats' => RpsGameStats::class,
-                'batch:unlock-ship-games' => UnlockShipGames::class
+                'batch:unlock-ship-games' => UnlockShipGames::class,
+                'batch:fake-account-check' => FakeAccountCheck::class
             ],
         ];
     }
@@ -96,7 +99,8 @@ class ConfigProvider
                 TransactionStats::class => TransactionStatsFactory::class,
                 CacheGuildMembers::class => CacheGuildMembersFactory::class,
                 RpsGameStats::class => RpsGameStatsFactory::class,
-                UnlockShipGames::class => UnlockShipGamesFactory::class
+                UnlockShipGames::class => UnlockShipGamesFactory::class,
+                FakeAccountCheck::class => FakeAccountCheckFactory::class
             ],
         ];
     }
