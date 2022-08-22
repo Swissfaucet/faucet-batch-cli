@@ -51,6 +51,11 @@ class FakeAccountCheck extends Command
     private TableGateway $mLogTbl;
 
     /**
+     * @var TableGateway
+     */
+    private TableGateway $mUserSettingsTbl;
+
+    /**
      * Constructor
      *
      * UserResource constructor.
@@ -63,6 +68,7 @@ class FakeAccountCheck extends Command
         $this->mUserStatsTbl = new TableGateway('user_faucet_stat', $mapper);
         $this->mStatsTbl = new TableGateway('core_statistic', $mapper);
         $this->mLogTbl = new TableGateway('faucet_log', $mapper);
+        $this->mUserSettingsTbl = new TableGateway('user_setting', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mBatchTools = new BatchTools($mapper);
@@ -112,8 +118,21 @@ class FakeAccountCheck extends Command
         // Count Entries
         $accountsCount = $accountsToday->count();
 
+        // Get banned users
+        $bannedUsers = $this->mUserSettingsTbl->select(['setting_name' => 'user-tempban']);
+        $bannedUsersById = [];
+        foreach($bannedUsers as $ba) {
+            if(!in_array($ba->user_idfs, $bannedUsersById)) {
+                $bannedUsersById[] = $ba->user_idfs;
+            }
+        }
+
         $withdrawalsByIp = [];
         foreach($accountsToday as $wth) {
+            // skip banned users
+            if(in_array($wth->user_idfs, $bannedUsersById)) {
+                continue;
+            }
             if(strlen($wth->ip) > 1) {
                 if(!array_key_exists('ip-'.$wth->ip, $withdrawalsByIp)) {
                     $withdrawalsByIp['ip-'.$wth->ip] = [];

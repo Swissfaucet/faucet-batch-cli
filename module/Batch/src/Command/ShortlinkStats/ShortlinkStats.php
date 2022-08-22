@@ -72,19 +72,42 @@ class ShortlinkStats extends Command {
         // Make output avaiable for class
         $this->output = $output;
 
+        $lastDate = $this->mSecTools->getCoreSetting('job_shortlink_stats_date');
+        $lastrun = $this->mSecTools->getCoreSetting('job_shortlink_stats_lastrun');
+
+        // only run batch once per day
+        if(strtotime($lastrun) <= strtotime('-1 hour')) {
+            try {
+                $stop_date = new \DateTime($lastDate);
+                $stop_date->modify('+1 hour');
+                $statDate = strtotime($stop_date->format('Y-m-d H:i:s'));
+            } catch (\Exception $e) {
+                $output->writeln([
+                    '## ERROR - COULD NOT INITIALIZE DATE',
+                ]);
+                return Command::SUCCESS;
+            }
+        } else {
+            $output->writeln([
+                '## ERROR - BATCH HAS ALREADY RUN TODAY',
+            ]);
+            return Command::SUCCESS;
+        }
+
         // log start
         $output->writeln([
             '=====================',
-            'Generating Shortlink Statistics @ ' . date('Y-m-d H:i:s', time()),
+            'Generating Shortlink Statistics @ ' . date('Y-m-d H:i:s', $statDate),
             '---------------------',
         ]);
 
-        $linksDone = $this->generateShortlinkStats(time(), $output);
+        $linksDone = $this->generateShortlinkStats($statDate, $output);
         $output->writeln([
             '- Processed '.$linksDone.' shortlinks',
         ]);
 
-        $this->mSecTools->updateCoreSetting('job_shortlink_stats_lastrun', date('Y-m-d H:i:s', time()));
+        $this->mSecTools->updateCoreSetting('job_shortlink_stats_date', $stop_date->format('Y-m-d H:i:s'));
+        //$this->mSecTools->updateCoreSetting('job_shortlink_stats_lastrun', date('Y-m-d H:i:s', time()));
 
         $output->writeln([
             '-- Shortlink Statistics completed successfully',
@@ -97,7 +120,8 @@ class ShortlinkStats extends Command {
     private function generateShortlinkStats($date, $output) {
         // load shares
         $tWh = new Where();
-        $tWh->equalTo('stats_processed', 0);
+        $tWh->like('date_started', date('Y-m-d H', $date).'%');
+        //$tWh->like('date_started', date('Y-m-d', $date).'%');
         $tSel = new Select($this->mLinksDoneTbl->getTable());
         $tSel->where($tWh);
         $tSel->order('date_started ASC');
@@ -123,13 +147,15 @@ class ShortlinkStats extends Command {
             if(!array_key_exists('sh-'.$link->shortlink_idfs, $completedByProviderId)) {
                 $completedByProviderId['sh-'.$link->shortlink_idfs] = 0;
             }
+
             // only count completed links
             if(strlen($link->date_completed) > 5 && $link->date_completed != '0000-00-00 00:00:00') {
                 $totalLinksCompleted++;
                 $completedByProviderId['sh-'.$link->shortlink_idfs]++;
                 $linksByUserId['user-'.$link->user_idfs]++;
             }
-            $this->mLinksDoneTbl->update(['stats_processed' => 1], ['id' => $link->id]);
+
+            //$this->mLinksDoneTbl->update(['stats_processed' => 1], ['id' => $link->id]);
         }
 
         // update user stats (alltime)
