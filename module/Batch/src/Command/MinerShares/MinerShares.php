@@ -92,6 +92,7 @@ final class MinerShares extends AbstractParamAwareCommand
             case 'xmr':
             case 'etc':
             case 'rvn':
+            case 'ergo':
                 break;
             default:
                 $output->writeln([
@@ -279,14 +280,18 @@ final class MinerShares extends AbstractParamAwareCommand
         }
 
         // Convert Crypto Earnings to Swissfaucet Coins
-        $earningsCoins = $this->convertCryptoEarningsToCoins($currency, $earningsCrypto);
+        $coin_sign = $currency;
+        if(strtoupper($currency) == 'ERGO') {
+            $coin_sign = 'ERG';
+        }
+        $earningsCoins = $this->convertCryptoEarningsToCoins($coin_sign, $earningsCrypto);
         if($earningsCoins) {
             $output->writeln([
                 '- Total Earnings in Coins: '.$earningsCoins,
             ]);
         } else {
             $output->writeln([
-                '## ERROR - COULD NOT COINVERT EARNINGS TO CRYPTO',
+                '## ERROR - COULD NOT CONVERT EARNINGS TO CRYPTO',
             ]);
             return true;
         }

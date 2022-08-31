@@ -10,6 +10,7 @@ use Laminas\Db\TableGateway\TableGateway;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Mailjet\Resources;
 
 class FakeAccountCheck extends Command
 {
@@ -59,6 +60,7 @@ class FakeAccountCheck extends Command
      * @var TableGateway
      */
     private TableGateway $mClaimTbl;
+    private TableGateway $mUserTbl;
 
     /**
      * Constructor
@@ -75,6 +77,7 @@ class FakeAccountCheck extends Command
         $this->mLogTbl = new TableGateway('faucet_log', $mapper);
         $this->mUserSettingsTbl = new TableGateway('user_setting', $mapper);
         $this->mClaimTbl = new TableGateway('faucet_claim', $mapper);
+        $this->mUserTbl = new TableGateway('user', $mapper);
 
         $this->mSecTools = new SecurityTools($mapper);
         $this->mBatchTools = new BatchTools($mapper);
@@ -94,16 +97,19 @@ class FakeAccountCheck extends Command
             '---------------------',
         ]);
 
+
         $accountsFound = 0;
         $accountsFound = $this->processWithdrawals();
         $output->writeln([
             'Processed '.$accountsFound.' withdrawals',
         ]);
-
+        /**
         $claimsFound = $this->processFaucetClaims();
         $output->writeln([
             'Processed '.$claimsFound.' faucet claims',
-        ]);
+        ]); **/
+
+        //$this->sendRememberEmails();
 
         $this->mSecTools->updateCoreSetting('job_fake_checker_lastrun', date('Y-m-d H:i:s', time()));
 
@@ -113,6 +119,89 @@ class FakeAccountCheck extends Command
         ]);
 
         return Command::SUCCESS;
+    }
+
+    private function sendRememberEmails() {
+        // Get banned users
+        $bannedUsers = $this->mUserSettingsTbl->select(['setting_name' => 'user-tempban']);
+        $bannedUsersById = [];
+        foreach($bannedUsers as $ba) {
+            if(!in_array($ba->user_idfs, $bannedUsersById)) {
+                $bannedUsersById[] = $ba->user_idfs;
+            }
+        }
+
+
+        $inWh = new Where();
+        $inWh->equalTo('email_verified', 1);
+        $inWh->equalTo('mail_unsub', 0);
+        $inWh->lessThanOrEqualTo('last_action', date('Y-m-d', strtotime('-1 month')));
+        $inWh->greaterThanOrEqualTo('token_balance', 800);
+
+        $inactiveUsers = $this->mUserTbl->select($inWh);
+
+        //$inactiveUsers = $this->mUserTbl->select(['User_ID' => 335874987, 'mail_unsub' => 0]);
+        $totalUsers = 0;
+        $skippedUsers = 0;
+        foreach($inactiveUsers as $user) {
+            if(!in_array($user->User_ID, $bannedUsersById)) {
+                $totalUsers++;
+                $claimKey = md5($user->email.time().'claim');
+                $this->mUserTbl->update([
+                    'mailclaim_key' => $claimKey,
+                    'unsub_key' => $claimKey
+                ],['User_ID' => $user->User_ID]);
+
+                $this->sendMail($user->email, $user->username, $user->token_balance, $claimKey);
+            } else {
+                $skippedUsers++;
+            }
+        }
+
+        // /unsub-email
+
+        $this->output->writeln([
+            "Send E-Mail to ".$totalUsers." Users",
+            "Skipped ".$skippedUsers." banned users",
+        ]);
+    }
+
+    private function sendMail($to, $name, $balance, $key) {
+        $mjKey = $this->mSecTools->getCoreSetting('mailjet-key');
+        $mjSecret = $this->mSecTools->getCoreSetting('mailjet-secret');
+
+        $mj = new \Mailjet\Client($mjKey,$mjSecret,true,['version' => 'v3.1']);
+        $body = [
+            'Messages' => [
+                [
+                    'From' => [
+                        'Email' => "admin@swissfaucet.io",
+                        'Name' => "Swissfaucet.io"
+                    ],
+                    'To' => [
+                        [
+                            'Email' => $to,
+                            'Name' => $name
+                        ]
+                    ],
+                    'Subject' => "We Miss you ".$name,
+                    'TemplateID' => 4144560,
+                    'TemplateLanguage' => true,
+                    'Variables' => [
+                        'balance' => $balance,
+                        'username' => $name,
+                        'claimkey' => $key
+                    ],
+                ]
+            ]
+        ];
+
+        try {
+            $response = $mj->post(Resources::$Email, ['body' => $body]);
+            $response->success();
+        } catch (Exception $e) {
+
+        }
     }
 
     private function processWithdrawals()

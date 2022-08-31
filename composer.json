@@ -15,7 +15,8 @@
         "laminas/laminas-development-mode": "^3.2",
         "laminas/laminas-skeleton-installer": "^0.6",
         "laminas/laminas-mvc": "^3.1.1",
-        "laminas/laminas-db": "^2.15"
+        "laminas/laminas-db": "^2.15",
+        "mailjet/mailjet-apiv3-php": "^1.5"
     },
     "autoload": {
         "psr-4": {

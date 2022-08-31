@@ -88,6 +88,10 @@ class MinerStats extends Command {
         $output->writeln([
             '- Processed '.$sharesXmr.' xmr shares',
         ]);
+        $sharesErgo = $this->calculateCoinStats($now, 'ergo', $output);
+        $output->writeln([
+            '- Processed '.$sharesErgo.' ergo shares',
+        ]);
 
         $this->mSecTools->updateCoreSetting('job_mining_stats_lastrun', date('Y-m-d H:i:s', time()));
 
